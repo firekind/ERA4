@@ -85,7 +85,7 @@ Test set: Average loss: 0.0237, Accuracy: 9920/10000 (99.20%)
 - Train Accuracy: 95.47%
 - Test Accuracy: 99.17%
 
-[Here's the notebook](./notebooks/model_3.ipynb)
+[Here's the notebook](./notebooks/model_2.ipynb)
 
 **The Reality Check:** Much better! The gap shrunk significantly. But we're still not hitting consistent 99.4%, and the accuracy is jumping around in the last epochs. Time to stabilize things.
 
