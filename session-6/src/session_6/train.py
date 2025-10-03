@@ -136,5 +136,3 @@ def create_mnist_data_loaders(
     )
 
     return (train_loader, test_loader)
-    return (train_loader, test_loader)
-    return (train_loader, test_loader)
