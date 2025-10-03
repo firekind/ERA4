@@ -1,0 +1,23 @@
+[project]
+name = "session-7"
+version = "0.1.0"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "albumentations>=2.0.8",
+    "lightning>=2.5.5",
+    "matplotlib>=3.10.6",
+    "numpy>=2.3.3",
+    "torch>=2.8.0",
+    "torchmetrics>=1.8.2",
+    "torchsummary>=1.5.1",
+    "torchvision>=0.23.0",
+    "tqdm>=4.67.1",
+]
+
+[build-system]
+requires = ["uv_build>=0.8.17,<0.9.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = ["ipykernel>=6.30.1"]
