@@ -1,0 +1,33 @@
+seed_everything: 0
+model:
+  class_path: era4_mini_capstone.ResNet50OneCycle
+  init_args:
+    lr: 0.3
+data:
+  root: /mnt/dataset
+  batch_size: 384
+  num_workers: 6
+trainer:
+  max_epochs: 90
+  precision: bf16-mixed
+  accumulate_grad_batches: 2
+  callbacks:
+    - class_path: lightning.pytorch.callbacks.ModelCheckpoint
+      init_args:
+        filename: "resnet50-imagenet1k-{epoch:02d}-{metric.val.acc:.4f}"
+        monitor: metric.val.acc
+        mode: max
+        save_top_k: 3
+        save_last: true
+        verbose: true
+    - class_path: lightning.pytorch.callbacks.LearningRateMonitor
+      init_args:
+        logging_interval: step
+    - class_path: lightning.pytorch.callbacks.TQDMProgressBar
+      init_args:
+        leave: true
+  logger:
+    class_path: lightning.pytorch.loggers.TensorBoardLogger
+    init_args:
+      save_dir: data/logs
+      name: resnet50_imagenet1k
