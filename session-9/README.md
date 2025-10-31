@@ -8,6 +8,8 @@ Best results:
 - validation accuracy: 77.2%
 - number of epochs: 100
 
+huggingface space: https://huggingface.co/spaces/firekind/era4-resnet50-imagenet1k
+
 Training was interrupted since I was using a spot instance, but here are the training logs after interruption:
 ```
 ubuntu@ip-172-31-34-127:~/Projects/era4-mini-capstone$ uv run scripts/main.py fit --config scripts/version_2.yaml --ckpt_path data/logs/resnet50_imagenet1k/version_2/checkpoints/last.ckpt
