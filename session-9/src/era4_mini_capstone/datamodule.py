@@ -80,7 +80,7 @@ class ImageNetDataset(VisionDataset):
 
         root_dir = Path(self.root)
         mapping_file = root_dir / "LOC_synset_mapping.txt"
-        synset_to_idx = self._load_synset_mapping(mapping_file)
+        synset_to_idx, self.idx_to_name = self._load_synset_mapping(mapping_file)
 
         self.samples: list[tuple[Path, int]]
         if train:
@@ -104,15 +104,20 @@ class ImageNetDataset(VisionDataset):
 
         return sample, label
 
+    def get_name_for_class(self, idx: int) -> str:
+        return self.idx_to_name.get(idx, "")
+
     @staticmethod
-    def _load_synset_mapping(path: Path) -> dict[str, int]:
+    def _load_synset_mapping(path: Path) -> tuple[dict[str, int], dict[int, str]]:
         synset_to_idx = {}
+        idx_to_name = {}
         with open(path) as f:
             for idx, line in enumerate(f):
-                synset, _ = line.strip().split(" ", 1)
+                synset, name = line.strip().split(" ", 1)
                 synset_to_idx[synset] = idx
+                idx_to_name[idx] = name
 
-        return synset_to_idx
+        return synset_to_idx, idx_to_name
 
     @staticmethod
     def _load_train_samples(
