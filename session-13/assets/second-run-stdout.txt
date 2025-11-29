@@ -1,0 +1,26 @@
+$ uv run scripts/train.py fit --config scripts/version_1.yaml --ckpt_path data/logs/lightning_logs/version_0/checkpoints/smollm2-step=05000-train.loss=0.1324.ckpt
+Seed set to 0
+Using bfloat16 Automatic Mixed Precision (AMP)
+GPU available: True (mps), used: True
+TPU available: False, using: 0 TPU cores
+Restoring states from the checkpoint path at data/logs/lightning_logs/version_0/checkpoints/smollm2-step=05000-train.loss=0.1324.ckpt
+./session-13/.venv/lib/python3.12/site-packages/lightning/pytorch/callbacks/model_checkpoint.py:445: The dirpath has changed from 'data/logs/lightning_logs/version_0/checkpoints' to 'data/logs/lightning_logs/version_1/checkpoints', therefore `best_model_score`, `kth_best_model_path`, `kth_value`, `last_model_path` and `best_k_models` won't be reloaded. Only `best_model_path` will be reloaded.
+./session-13/.venv/lib/python3.12/site-packages/lightning/pytorch/utilities/model_summary/model_summary.py:231: Precision bf16-mixed is not supported by the model summary.  Estimated model size in MB will not be accurate. Using 32 bits instead.
+
+  | Name  | Type    | Params | Mode
+------------------------------------------
+0 | model | SmolLM2 | 134 M  | train
+------------------------------------------
+134 M     Trainable params
+0         Non-trainable params
+134 M     Total params
+538.060   Total estimated model params size (MB)
+394       Modules in train mode
+0         Modules in eval mode
+Restored all states from the checkpoint at data/logs/lightning_logs/version_0/checkpoints/smollm2-step=05000-train.loss=0.1324.ckpt
+Training: |                                                                                                                                                                                                                                                                                                              | 0/? [00:00<?, ?it/s]./session-13/.venv/lib/python3.12/site-packages/lightning/pytorch/loops/training_epoch_loop.py:223: You're resuming from a checkpoint that ended before the epoch ended and your dataloader is not resumable. This can cause unreliable results if further training is done. Consider using an end-of-epoch checkpoint or make your dataloader resumable by implementing the `state_dict` / `load_state_dict` interface.
+./session-13/.venv/lib/python3.12/site-packages/torch/amp/autocast_mode.py:270: UserWarning: User provided device_type of 'cuda', but CUDA is not available. Disabling
+  warnings.warn(
+Training: |                                                                                                                                                                                                                                                                       | 5050/? [00:28<00:00, 177.63it/s, v_num=1, train.loss=0.165]
+Epoch 0, global step 5050: 'train.loss' reached 0.16451 (best 0.16451), saving model to 'data/logs/lightning_logs/version_1/checkpoints/smollm2-step=05050-train.loss=0.1645.ckpt' as top 3
+`Trainer.fit` stopped: `max_steps=5050` reached.

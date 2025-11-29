@@ -1,0 +1,188 @@
+$ uv run scripts/train.py fit --config scripts/version_0.yaml
+Seed set to 0
+Using bfloat16 Automatic Mixed Precision (AMP)
+GPU available: True (mps), used: True
+TPU available: False, using: 0 TPU cores
+./session-13/.venv/lib/python3.12/site-packages/lightning/pytorch/utilities/model_summary/model_summary.py:231: Precision bf16-mixed is not supported by the model summary.  Estimated model size in MB will not be accurate. Using 32 bits instead.
+
+  | Name  | Type    | Params | Mode
+------------------------------------------
+0 | model | SmolLM2 | 134 M  | train
+------------------------------------------
+134 M     Trainable params
+0         Non-trainable params
+134 M     Total params
+538.060   Total estimated model params size (MB)
+394       Modules in train mode
+0         Modules in eval mode
+Training: |          | 0/? [00:00<?, ?it/s]
+Epoch 0:   0%|          | 0/5000 [00:00<?, ?it/s]./session-13/.venv/lib/python3.12/site-packages/torch/amp/autocast_mode.py:270: UserWarning: User provided device_type of 'cuda', but CUDA is not available. Disabling
+  warnings.warn(
+Epoch 0:  10%|▉         | 499/5000 [04:50<43:40,  1.72it/s, v_num=0, train.loss=4.780]
+================================================================================
+Generating at step 499
+================================================================================
+
+Prompt: Once upon a time
+Generated: Once upon a time,
+And, to my lord, and my lord,
+And I have a man, and my lord,
+And I have a man, and I have a
+And, and I have a man,
+And I have a man,
+
+================================================================================
+
+Epoch 0:  20%|█▉        | 999/5000 [09:45<39:03,  1.71it/s, v_num=0, train.loss=4.250]
+================================================================================
+Generating at step 999
+================================================================================
+
+Prompt: Once upon a time
+Generated: Once upon a time you.
+
+NORTHUMBERLAND:
+I'll tell thee, my lord, I'll not go.
+
+NORTHUMBERLAND:
+I'll not go.
+
+NORTHUMBERL
+
+================================================================================
+
+Epoch 0:  30%|██▉       | 1499/5000 [16:23<38:17,  1.52it/s, v_num=0, train.loss=3.280]
+================================================================================
+Generating at step 1499
+================================================================================
+
+Prompt: Once upon a time
+Generated: Once upon a time,
+And, as a most life, as a very thing
+To be so, as I am, as you,
+As I have been, as I am not, I am
+I am like you: I am not, I pray
+
+================================================================================
+
+Epoch 0:  40%|███▉      | 1999/5000 [36:04<54:09,  0.92it/s, v_num=0, train.loss=2.170]
+================================================================================
+Generating at step 1999
+================================================================================
+
+Prompt: Once upon a time
+Generated: Once upon a time,
+And yet she was not stand.
+
+ANGELO:
+'Tis done, and we'll prove a maid.
+
+ISABELLA:
+I will to heaven, and I will speak:
+And let it
+
+================================================================================
+
+Epoch 0:  50%|████▉     | 2499/5000 [52:44<52:47,  0.79it/s, v_num=0, train.loss=1.270]
+================================================================================
+Generating at step 2499
+================================================================================
+
+Prompt: Once upon a time
+Generated: Once upon a time,
+And yet not many.
+
+LEONTES:
+Let him be so, good friar, to see your daughter:
+The Bohem of your highness we are at hand,
+And I'll speak a little.
+
+
+
+================================================================================
+
+Epoch 0:  60%|█████▉    | 2999/5000 [57:34<38:25,  0.87it/s, v_num=0, train.loss=0.407]
+================================================================================
+Generating at step 2999
+================================================================================
+
+Prompt: Once upon a time
+Generated: Once upon a time,
+And in an war thou hast more of thyself?
+
+KING RICHARD II:
+Norfolk, the reason is at the news
+The state for some other.
+
+DUKE OF YORK:
+
+
+================================================================================
+
+Epoch 0:  70%|██████▉   | 3499/5000 [1:02:25<26:46,  0.93it/s, v_num=0, train.loss=0.335]
+================================================================================
+Generating at step 3499
+================================================================================
+
+Prompt: Once upon a time
+Generated: Once upon a time,
+And never be tied of an idle plume,
+Gives and unfeigned love and cut the winds,
+So wrong to our dastard nobles, and his
+To thrust the secret to the palace gates.
+
+NOR
+
+================================================================================
+
+Epoch 0:  80%|███████▉  | 3999/5000 [1:07:15<16:50,  0.99it/s, v_num=0, train.loss=0.183]
+================================================================================
+Generating at step 3999
+================================================================================
+
+Prompt: Once upon a time
+Generated: Once upon a time,
+To lay this bastard's life?
+O, they did urge it still unto the king!
+God will revenge it. But come, let us in,
+To comfort Edward with our company.
+
+BENVOLIO:
+
+================================================================================
+
+Epoch 0:  90%|████████▉ | 4499/5000 [1:12:04<08:01,  1.04it/s, v_num=0, train.loss=0.169]
+================================================================================
+Generating at step 4499
+================================================================================
+
+Prompt: Once upon a time
+Generated: Once upon a time;
+And many an end now unto a wretchedable,
+Which else would put you to your fortune and
+Tears for the end of him that is
+The fresh folly of the queen, must die at.
+
+ISABEL
+
+================================================================================
+
+Epoch 0: 100%|█████████▉| 4999/5000 [1:16:54<00:00,  1.08it/s, v_num=0, train.loss=0.180]
+================================================================================
+Generating at step 4999
+================================================================================
+
+Prompt: Once upon a time
+Generated: Once upon a time.
+
+QUEEN ELIZABETH:
+By Him that raised me to this careful height
+From that contented hap which I enjoy'd,
+I never did incense his majesty
+Against the Duke of Clarence, but have been
+
+================================================================================
+
+Epoch 0: 100%|██████████| 5000/5000 [1:16:56<00:00,  1.08it/s, v_num=0, train.loss=0.132]
+Epoch 0, global step 5000: 'train.loss' reached 0.13238 (best 0.13238), saving model to 'data/logs/lightning_logs/version_0/checkpoints/smollm2-step=05000-train.loss=0.1324.ckpt' as top 3
+`Trainer.fit` stopped: `max_steps=5000` reached.
