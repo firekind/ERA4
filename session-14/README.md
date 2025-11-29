@@ -5,6 +5,7 @@
 This project converts the SmolLM2-135M architecture to DeepSeek's architecture, incorporating two key innovations:
 1. **Multi-Head Latent Attention (MLHA)** - Replaces Grouped Query Attention (GQA)
 2. **Mixture of Experts (MoE)** - Replaces standard MLP layers with shared + routed experts
+and training it on a dummy dataset.
 
 ## Architecture Changes
 
@@ -225,6 +226,37 @@ This is the brat, and so much before.
 
 KING HENRY VI
 ```
+
+### Prompt: "Who goes there?"
+Who goes there?
+
+DUKE OF AUMERLE:
+I brought my lord, no doubt, and I know;
+Lest in your son, as thou know,
+To have been still no cause to me
+Of all the justice of his grace
+Of Bolingbroke, and that, to speak:
+I am your grace, and that for that
+My father of England, and he shall quickly,
+From the most love and the Englishman,
+My father of
+
+### Prompt: "The throne room was"
+The throne room was,
+The common of those o' the state; and so say
+To think must be the man that have you
+Of this my nature.
+
+PROSPERO:
+'Tis time
+I do so dishonour.
+
+MIRANDA:
+'Tis time
+To be dangerous: but in my state
+To be content you; for, not think
+To bate me, by oath-night and hang'd
+Awaked an enemy, which
 
 ## Key Learnings
 
