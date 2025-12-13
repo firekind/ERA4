@@ -1,0 +1,81 @@
+Seed set to 42
+GPU available: True (cuda), used: True
+TPU available: False, using: 0 TPU cores
+You are using a CUDA device ('NVIDIA A10G') that has Tensor Cores. To properly utilize them, you should set `torch.set_float32_matmul_precision('medium' | 'high')` which will trade-off precision for performance. For more details, read https://pytorch.org/docs/stable/generated/torch.set_float32_matmul_precision.html#torch.set_float32_matmul_precision
+LOCAL_RANK: 0 - CUDA_VISIBLE_DEVICES: [0]
+Loading `train_dataloader` to estimate number of stepping batches.
+
+  | Name    | Type     | Params | Mode  | FLOPs
+-----------------------------------------------------
+0 | model   | UNet     | 31.0 M | train | 0
+1 | loss_fn | DiceLoss | 0      | train | 0
+-----------------------------------------------------
+31.0 M    Trainable params
+0         Non-trainable params
+31.0 M    Total params
+124.174   Total estimated model params size (MB)
+90        Modules in train mode
+0         Modules in eval mode
+0         Total Flops
+Training: |                                                                                                                                                                           | 0/? [00:00<?, ?it/s]
+Epoch 0: 100%|███████████████████████████████████████████████████████████████| 115/115 [01:29<00:00,  1.28it/s, v_num=1, metric.train.loss_step=0.408, metric.val.loss=0.386, metric.train.loss_epoch=0.423]
+Epoch 0, global step 115: 'metric.val.loss' reached 0.38611 (best 0.38611), saving model to 'data/logs/unet-oxfordiiitpet/version_1/checkpoints/unet-oxfordiiitpet-epoch=00-metric.val.loss=0.3861.ckpt' as top 3
+Epoch 1: 100%|███████████████████████████████████████████████████████████████| 115/115 [01:30<00:00,  1.28it/s, v_num=1, metric.train.loss_step=0.315, metric.val.loss=0.345, metric.train.loss_epoch=0.351]
+Epoch 1, global step 230: 'metric.val.loss' reached 0.34483 (best 0.34483), saving model to 'data/logs/unet-oxfordiiitpet/version_1/checkpoints/unet-oxfordiiitpet-epoch=01-metric.val.loss=0.3448.ckpt' as top 3
+Epoch 2: 100%|███████████████████████████████████████████████████████████████| 115/115 [01:29<00:00,  1.28it/s, v_num=1, metric.train.loss_step=0.309, metric.val.loss=0.312, metric.train.loss_epoch=0.322]
+Epoch 2, global step 345: 'metric.val.loss' reached 0.31159 (best 0.31159), saving model to 'data/logs/unet-oxfordiiitpet/version_1/checkpoints/unet-oxfordiiitpet-epoch=02-metric.val.loss=0.3116.ckpt' as top 3
+Epoch 3: 100%|███████████████████████████████████████████████████████████████| 115/115 [01:29<00:00,  1.28it/s, v_num=1, metric.train.loss_step=0.258, metric.val.loss=0.307, metric.train.loss_epoch=0.297]
+Epoch 3, global step 460: 'metric.val.loss' reached 0.30695 (best 0.30695), saving model to 'data/logs/unet-oxfordiiitpet/version_1/checkpoints/unet-oxfordiiitpet-epoch=03-metric.val.loss=0.3069.ckpt' as top 3
+Epoch 4: 100%|███████████████████████████████████████████████████████████████| 115/115 [01:29<00:00,  1.28it/s, v_num=1, metric.train.loss_step=0.283, metric.val.loss=0.517, metric.train.loss_epoch=0.275]
+Epoch 4, global step 575: 'metric.val.loss' was not in top 3
+Epoch 5: 100%|███████████████████████████████████████████████████████████████| 115/115 [01:30<00:00,  1.28it/s, v_num=1, metric.train.loss_step=0.243, metric.val.loss=0.273, metric.train.loss_epoch=0.253]
+Epoch 5, global step 690: 'metric.val.loss' reached 0.27318 (best 0.27318), saving model to 'data/logs/unet-oxfordiiitpet/version_1/checkpoints/unet-oxfordiiitpet-epoch=05-metric.val.loss=0.2732.ckpt' as top 3
+Epoch 6: 100%|███████████████████████████████████████████████████████████████| 115/115 [01:30<00:00,  1.28it/s, v_num=1, metric.train.loss_step=0.278, metric.val.loss=0.276, metric.train.loss_epoch=0.239]
+Epoch 6, global step 805: 'metric.val.loss' reached 0.27621 (best 0.27318), saving model to 'data/logs/unet-oxfordiiitpet/version_1/checkpoints/unet-oxfordiiitpet-epoch=06-metric.val.loss=0.2762.ckpt' as top 3
+Epoch 7: 100%|███████████████████████████████████████████████████████████████| 115/115 [01:30<00:00,  1.28it/s, v_num=1, metric.train.loss_step=0.218, metric.val.loss=0.245, metric.train.loss_epoch=0.229]
+Epoch 7, global step 920: 'metric.val.loss' reached 0.24497 (best 0.24497), saving model to 'data/logs/unet-oxfordiiitpet/version_1/checkpoints/unet-oxfordiiitpet-epoch=07-metric.val.loss=0.2450.ckpt' as top 3
+Epoch 8: 100%|███████████████████████████████████████████████████████████████| 115/115 [01:29<00:00,  1.28it/s, v_num=1, metric.train.loss_step=0.215, metric.val.loss=0.218, metric.train.loss_epoch=0.215]
+Epoch 8, global step 1035: 'metric.val.loss' reached 0.21784 (best 0.21784), saving model to 'data/logs/unet-oxfordiiitpet/version_1/checkpoints/unet-oxfordiiitpet-epoch=08-metric.val.loss=0.2178.ckpt' as top 3
+Epoch 9: 100%|███████████████████████████████████████████████████████████████| 115/115 [01:29<00:00,  1.28it/s, v_num=1, metric.train.loss_step=0.169, metric.val.loss=0.250, metric.train.loss_epoch=0.203]
+Epoch 9, global step 1150: 'metric.val.loss' reached 0.25042 (best 0.21784), saving model to 'data/logs/unet-oxfordiiitpet/version_1/checkpoints/unet-oxfordiiitpet-epoch=09-metric.val.loss=0.2504.ckpt' as top 3
+Epoch 10: 100%|██████████████████████████████████████████████████████████████| 115/115 [01:30<00:00,  1.28it/s, v_num=1, metric.train.loss_step=0.183, metric.val.loss=0.191, metric.train.loss_epoch=0.192]
+Epoch 10, global step 1265: 'metric.val.loss' reached 0.19091 (best 0.19091), saving model to 'data/logs/unet-oxfordiiitpet/version_1/checkpoints/unet-oxfordiiitpet-epoch=10-metric.val.loss=0.1909.ckpt' as top 3
+Epoch 11: 100%|██████████████████████████████████████████████████████████████| 115/115 [01:30<00:00,  1.28it/s, v_num=1, metric.train.loss_step=0.198, metric.val.loss=0.185, metric.train.loss_epoch=0.179]
+Epoch 11, global step 1380: 'metric.val.loss' reached 0.18532 (best 0.18532), saving model to 'data/logs/unet-oxfordiiitpet/version_1/checkpoints/unet-oxfordiiitpet-epoch=11-metric.val.loss=0.1853.ckpt' as top 3
+Epoch 12: 100%|██████████████████████████████████████████████████████████████| 115/115 [01:30<00:00,  1.28it/s, v_num=1, metric.train.loss_step=0.139, metric.val.loss=0.185, metric.train.loss_epoch=0.171]
+Epoch 12, global step 1495: 'metric.val.loss' reached 0.18532 (best 0.18532), saving model to 'data/logs/unet-oxfordiiitpet/version_1/checkpoints/unet-oxfordiiitpet-epoch=12-metric.val.loss=0.1853.ckpt' as top 3
+Epoch 13: 100%|██████████████████████████████████████████████████████████████| 115/115 [01:29<00:00,  1.28it/s, v_num=1, metric.train.loss_step=0.128, metric.val.loss=0.168, metric.train.loss_epoch=0.162]
+Epoch 13, global step 1610: 'metric.val.loss' reached 0.16783 (best 0.16783), saving model to 'data/logs/unet-oxfordiiitpet/version_1/checkpoints/unet-oxfordiiitpet-epoch=13-metric.val.loss=0.1678.ckpt' as top 3
+Epoch 14: 100%|██████████████████████████████████████████████████████████████| 115/115 [01:30<00:00,  1.28it/s, v_num=1, metric.train.loss_step=0.174, metric.val.loss=0.172, metric.train.loss_epoch=0.158]
+Epoch 14, global step 1725: 'metric.val.loss' reached 0.17183 (best 0.16783), saving model to 'data/logs/unet-oxfordiiitpet/version_1/checkpoints/unet-oxfordiiitpet-epoch=14-metric.val.loss=0.1718.ckpt' as top 3
+Epoch 15: 100%|██████████████████████████████████████████████████████████████| 115/115 [01:30<00:00,  1.28it/s, v_num=1, metric.train.loss_step=0.125, metric.val.loss=0.175, metric.train.loss_epoch=0.146]
+Epoch 15, global step 1840: 'metric.val.loss' reached 0.17538 (best 0.16783), saving model to 'data/logs/unet-oxfordiiitpet/version_1/checkpoints/unet-oxfordiiitpet-epoch=15-metric.val.loss=0.1754.ckpt' as top 3
+Epoch 16: 100%|██████████████████████████████████████████████████████████████| 115/115 [01:29<00:00,  1.28it/s, v_num=1, metric.train.loss_step=0.151, metric.val.loss=0.161, metric.train.loss_epoch=0.139]
+Epoch 16, global step 1955: 'metric.val.loss' reached 0.16140 (best 0.16140), saving model to 'data/logs/unet-oxfordiiitpet/version_1/checkpoints/unet-oxfordiiitpet-epoch=16-metric.val.loss=0.1614.ckpt' as top 3
+Epoch 17: 100%|██████████████████████████████████████████████████████████████| 115/115 [01:30<00:00,  1.28it/s, v_num=1, metric.train.loss_step=0.145, metric.val.loss=0.151, metric.train.loss_epoch=0.134]
+Epoch 17, global step 2070: 'metric.val.loss' reached 0.15109 (best 0.15109), saving model to 'data/logs/unet-oxfordiiitpet/version_1/checkpoints/unet-oxfordiiitpet-epoch=17-metric.val.loss=0.1511.ckpt' as top 3
+Epoch 18: 100%|██████████████████████████████████████████████████████████████| 115/115 [01:30<00:00,  1.28it/s, v_num=1, metric.train.loss_step=0.136, metric.val.loss=0.151, metric.train.loss_epoch=0.126]
+Epoch 18, global step 2185: 'metric.val.loss' reached 0.15097 (best 0.15097), saving model to 'data/logs/unet-oxfordiiitpet/version_1/checkpoints/unet-oxfordiiitpet-epoch=18-metric.val.loss=0.1510.ckpt' as top 3
+Epoch 19: 100%|██████████████████████████████████████████████████████████████| 115/115 [01:30<00:00,  1.28it/s, v_num=1, metric.train.loss_step=0.149, metric.val.loss=0.137, metric.train.loss_epoch=0.121]
+Epoch 19, global step 2300: 'metric.val.loss' reached 0.13748 (best 0.13748), saving model to 'data/logs/unet-oxfordiiitpet/version_1/checkpoints/unet-oxfordiiitpet-epoch=19-metric.val.loss=0.1375.ckpt' as top 3
+Epoch 20: 100%|██████████████████████████████████████████████████████████████| 115/115 [01:30<00:00,  1.28it/s, v_num=1, metric.train.loss_step=0.127, metric.val.loss=0.150, metric.train.loss_epoch=0.112]
+Epoch 20, global step 2415: 'metric.val.loss' reached 0.14976 (best 0.13748), saving model to 'data/logs/unet-oxfordiiitpet/version_1/checkpoints/unet-oxfordiiitpet-epoch=20-metric.val.loss=0.1498.ckpt' as top 3
+Epoch 21: 100%|█████████████████████████████████████████████████████████████| 115/115 [01:29<00:00,  1.28it/s, v_num=1, metric.train.loss_step=0.0895, metric.val.loss=0.133, metric.train.loss_epoch=0.106]                                                                                                                                                                            [92/712]
+Epoch 21, global step 2530: 'metric.val.loss' reached 0.13337 (best 0.13337), saving model to 'data/logs/unet-oxfordiiitpet/version_1/checkpoints/unet-oxfordiiitpet-epoch=21-metric.val.loss=0.1334.ckpt' as top 3
+Epoch 22: 100%|█████████████████████████████████████████████████████████████| 115/115 [01:30<00:00,  1.28it/s, v_num=1, metric.train.loss_step=0.100, metric.val.loss=0.131, metric.train.loss_epoch=0.0977]
+Epoch 22, global step 2645: 'metric.val.loss' reached 0.13098 (best 0.13098), saving model to 'data/logs/unet-oxfordiiitpet/version_1/checkpoints/unet-oxfordiiitpet-epoch=22-metric.val.loss=0.1310.ckpt' as top 3
+Epoch 23: 100%|█████████████████████████████████████████████████████████████| 115/115 [01:30<00:00,  1.28it/s, v_num=1, metric.train.loss_step=0.106, metric.val.loss=0.138, metric.train.loss_epoch=0.0919]
+Epoch 23, global step 2760: 'metric.val.loss' was not in top 3
+Epoch 24: 100%|████████████████████████████████████████████████████████████| 115/115 [01:30<00:00,  1.28it/s, v_num=1, metric.train.loss_step=0.0899, metric.val.loss=0.129, metric.train.loss_epoch=0.0893]
+Epoch 24, global step 2875: 'metric.val.loss' reached 0.12895 (best 0.12895), saving model to 'data/logs/unet-oxfordiiitpet/version_1/checkpoints/unet-oxfordiiitpet-epoch=24-metric.val.loss=0.1289.ckpt' as top 3
+Epoch 25: 100%|████████████████████████████████████████████████████████████| 115/115 [01:29<00:00,  1.28it/s, v_num=1, metric.train.loss_step=0.0974, metric.val.loss=0.129, metric.train.loss_epoch=0.0838]
+Epoch 25, global step 2990: 'metric.val.loss' reached 0.12868 (best 0.12868), saving model to 'data/logs/unet-oxfordiiitpet/version_1/checkpoints/unet-oxfordiiitpet-epoch=25-metric.val.loss=0.1287.ckpt' as top 3
+Epoch 26: 100%|████████████████████████████████████████████████████████████| 115/115 [01:30<00:00,  1.28it/s, v_num=1, metric.train.loss_step=0.0786, metric.val.loss=0.128, metric.train.loss_epoch=0.0789]
+Epoch 26, global step 3105: 'metric.val.loss' reached 0.12773 (best 0.12773), saving model to 'data/logs/unet-oxfordiiitpet/version_1/checkpoints/unet-oxfordiiitpet-epoch=26-metric.val.loss=0.1277.ckpt' as top 3
+Epoch 27: 100%|████████████████████████████████████████████████████████████| 115/115 [01:30<00:00,  1.28it/s, v_num=1, metric.train.loss_step=0.0879, metric.val.loss=0.128, metric.train.loss_epoch=0.0774]
+Epoch 27, global step 3220: 'metric.val.loss' reached 0.12773 (best 0.12773), saving model to 'data/logs/unet-oxfordiiitpet/version_1/checkpoints/unet-oxfordiiitpet-epoch=27-metric.val.loss=0.1277.ckpt' as top 3
+Epoch 28: 100%|████████████████████████████████████████████████████████████| 115/115 [01:29<00:00,  1.28it/s, v_num=1, metric.train.loss_step=0.0833, metric.val.loss=0.128, metric.train.loss_epoch=0.0764]
+Epoch 28, global step 3335: 'metric.val.loss' reached 0.12773 (best 0.12773), saving model to 'data/logs/unet-oxfordiiitpet/version_1/checkpoints/unet-oxfordiiitpet-epoch=28-metric.val.loss=0.1277.ckpt' as top 3
+Epoch 29: 100%|█████████████████████████████████████████████████████████████| 115/115 [01:29<00:00,  1.28it/s, v_num=1, metric.train.loss_step=0.065, metric.val.loss=0.128, metric.train.loss_epoch=0.0752]
+Epoch 29, global step 3450: 'metric.val.loss' was not in top 3
+`Trainer.fit` stopped: `max_epochs=30` reached.
