@@ -1,6 +1,6 @@
 # U-Net Segmentation Experiments on Oxford-IIIT Pet Dataset
 
-[![Open in Hugging Face Spaces](img.shields.io)](https://huggingface.co/spaces/firekind/era4-session-15)
+[![Open in Spaces](https://img.shields.io/badge/%F0%9F%A4%97%20Hugging%20Face-Spaces-blue)](https://huggingface.co/spaces/firekind/era4-session-15)
 
 This project implements and compares four different U-Net architectures for pet segmentation on the Oxford-IIIT Pet Dataset.
 
