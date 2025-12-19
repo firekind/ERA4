@@ -1,5 +1,7 @@
-from pathlib import Path
+import os
+from dataclasses import dataclass
 
+import yaml
 from PySide6.QtCore import QPointF, Qt, QTimer, Signal
 from PySide6.QtGui import QColor, QPainter, QPainterPath, QPaintEvent, QPen
 from PySide6.QtWidgets import (
@@ -21,6 +23,41 @@ from session_16.cityrl.recorder import Recorder
 from session_16.cityrl.world import WorldState
 
 
+@dataclass
+class Config:
+    map: str
+    lr: float
+    epsilon: float
+    turn_speed: int
+    sharp_turn_speed: int
+    car_speed: int
+    max_consecutive_crashes: int
+    batch_size: int
+    gamma: float
+    tau: float
+    sensor_dist: int
+    record_dir: str | None = None
+    car_height: int = 14
+    car_width: int = 8
+
+    @staticmethod
+    def from_yaml_file(path: str) -> "Config":
+        config: Config
+        with open(path) as f:
+            data = yaml.safe_load(f)
+            config = Config(**data)
+
+        if config.map[0] != "/":
+            config.map = os.path.join(
+                os.path.dirname(path), config.map
+            )  # relative to config file
+
+        if config.record_dir is not None and config.record_dir[0] != "/":
+            config.record_dir = os.path.join(os.path.dirname(path), config.record_dir)
+
+        return config
+
+
 class Dashboard(QWidget):
     def __init__(self):
         super().__init__()
@@ -28,22 +65,10 @@ class Dashboard(QWidget):
         self.setMinimumSize(1300, 850)
 
         self.logger = Logger()
-        self.world = WorldState(
-            car_width=14, car_height=8, sensor_dist=15, logger=self.logger
-        )
-        self.brain = Brain(
-            self.world,
-            self.logger,
-            lr=1e-3,
-            epsilon=1.0,
-            turn_speed=8,
-            sharp_turn_speed=20,
-            car_speed=2,
-            max_consecutive_crashes=2,
-            batch_size=512,
-            gamma=0.95,
-            tau=3e-3,
-        )
+        self.world: WorldState | None = None
+        self.brain: Brain | None = None
+        self.map_view: MapView | None = None
+        self.recorder: Recorder | None = None
 
         self.ticker = QTimer()
         self.ticker.timeout.connect(self._update_loop)
@@ -63,24 +88,48 @@ class Dashboard(QWidget):
 
         self.layout_.addLayout(left_panel_layout, 1)
 
-        self.load_btn = QPushButton("Load Map")
+        self.load_btn = QPushButton("Load Config")
         self.load_btn.clicked.connect(self._on_load_button_clicked)
         self.layout_.addWidget(self.load_btn, 3, alignment=Qt.AlignmentFlag.AlignCenter)
 
-        self.map_view: MapView | None = None
-
-        self.record_dir = Path("./assets")
-        self.recorder = Recorder(self, fps=60)
-
     def _on_load_button_clicked(self):
         f, _ = QFileDialog.getOpenFileName(
-            self, "Load Map", "", "Images (*.png *.jpg *jpeg)"
+            self, "Load Config", "", "Config (*.yaml *.yml)"
         )
         if not f:
             return
 
-        self.layout_.removeWidget(self.load_btn)
-        self.load_btn.deleteLater()
+        config = Config.from_yaml_file(f)
+
+        self.world = WorldState(
+            car_width=config.car_width,
+            car_height=config.car_height,
+            sensor_dist=config.sensor_dist,
+            logger=self.logger,
+        )
+
+        self.brain = Brain(
+            self.world,
+            self.logger,
+            lr=config.lr,
+            epsilon=config.epsilon,
+            turn_speed=config.turn_speed,
+            sharp_turn_speed=config.sharp_turn_speed,
+            car_speed=config.car_speed,
+            max_consecutive_crashes=config.max_consecutive_crashes,
+            batch_size=config.batch_size,
+            gamma=config.gamma,
+            tau=config.tau,
+        )
+
+        if config.record_dir is not None:
+            self.recorder = Recorder(
+                self,
+                60,
+                os.path.join(
+                    config.record_dir, os.path.splitext(os.path.basename(f))[0]
+                ),
+            )
 
         map_layout = QVBoxLayout()
 
@@ -90,15 +139,15 @@ class Dashboard(QWidget):
         sim_controls.reset.connect(self._on_simulation_reset)
         map_layout.addWidget(sim_controls)
 
-        self.map_view = MapView(f, self.world, self.logger)
+        self.map_view = MapView(config.map, self.world, self.logger)
         map_layout.addWidget(self.map_view)
 
+        self.layout_.removeWidget(self.load_btn)
+        self.load_btn.deleteLater()
         self.layout_.addLayout(map_layout, 3)
-        self.recorder.reset()
-        self.recorder.set_prefix(self.record_dir / Path(f).stem)
 
     def _update_loop(self):
-        if self.map_view is None:
+        if self.map_view is None or self.brain is None:
             return
 
         res = self.brain.update()
@@ -107,12 +156,13 @@ class Dashboard(QWidget):
             self.info_view.update_eps(res.epsilon)
             self.info_view.update_last_reward(res.score)
 
-            self.recorder.capture()
-            if res.done:
-                if res.all_waypoints_reached:
-                    self.recorder.save()
-                else:
-                    self.recorder.clear()
+            if self.recorder is not None:
+                self.recorder.capture()
+                if res.done:
+                    if res.all_waypoints_reached:
+                        self.recorder.save()
+                    else:
+                        self.recorder.clear()
 
         self.map_view.update_visuals()
 
@@ -132,13 +182,17 @@ class Dashboard(QWidget):
             self.ticker.start(self.tick_time_ms)
 
     def _on_simulation_reset(self):
-        if self.map_view is None:
-            return
+        if self.world is not None:
+            self.world.reset()
 
-        self.world.reset()
-        self.brain.reset()
-        self.recorder.reset()
-        self.map_view.update_visuals()
+        if self.brain is not None:
+            self.brain.reset()
+
+        if self.recorder is not None:
+            self.recorder.reset()
+
+        if self.map_view is not None:
+            self.map_view.update_visuals()
         self.ticker.stop()
 
 

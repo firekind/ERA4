@@ -1,5 +1,3 @@
-from pathlib import Path
-
 import cv2
 import numpy as np
 from PySide6.QtCore import QThread
@@ -31,11 +29,11 @@ class VideoSaver(QThread):
 
 
 class Recorder:
-    def __init__(self, widget: QWidget, fps: int):
+    def __init__(self, widget: QWidget, fps: int, save_prefix: str):
         self.widget = widget
         self.frames: list[np.ndarray] = []
         self.count = 0
-        self.prefix = Path(".")
+        self.prefix = save_prefix
         self.fps = fps
 
         self.active_savers: list[VideoSaver] = []
@@ -70,12 +68,6 @@ class Recorder:
 
         self.frames = []
         self.count += 1
-
-    def set_prefix(self, prefix: str | Path):
-        if isinstance(prefix, str):
-            self.prefix = Path(prefix)
-        else:
-            self.prefix = prefix
 
     def clear(self):
         self.frames = []
