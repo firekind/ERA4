@@ -1,0 +1,14 @@
+map: ./city_map_3.jpeg
+car_width: 12
+car_height: 6
+sensor_dist: 10
+lr: 1.e-3
+epsilon: 1.0
+turn_speed: 8
+sharp_turn_speed: 20
+car_speed: 2
+max_consecutive_crashes: 2
+batch_size: 512
+gamma: 0.95
+tau: 3.e-3
+record_dir: ../data
