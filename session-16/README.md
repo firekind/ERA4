@@ -1,8 +1,24 @@
-# City Navigation RL Agent
+# Session 16 Assignment
+
+## Part 1 - Bellman Equation
+
+The bellman equation is implemented [here](./scripts/bellman_equation_showcase.py). The results:
+
+```
+Converged after 471 iterations
+
+Final Value Function:
+[[-59.42367735 -57.42387125 -54.2813141  -51.71012579]
+ [-57.42387125 -54.56699476 -49.71029394 -45.13926711]
+ [-54.2813141  -49.71029394 -40.85391609 -29.99766609]
+ [-51.71012579 -45.13926711 -29.99766609   0.        ]]
+```
+
+## Part 2 - City Navigation RL Agent
 
 Deep Q-Network (DQN) agent that learns to navigate a city map and reach sequential waypoints using reinforcement learning.
 
-## Features
+### Features
 
 - Temperature-based exploration with Softmax action selection
 - Prioritized experience replay (successful episodes prioritized)
@@ -10,7 +26,7 @@ Deep Q-Network (DQN) agent that learns to navigate a city map and reach sequenti
 - Real-time visualization with sensor feedback
 - Configurable hyperparameters via YAML
 
-## Quick Start
+### Quick Start
 
 1. Run the application:
 ```bash
@@ -27,25 +43,25 @@ uv run scripts/cityrl.py
 
 5. Use "Pause" and "Reset" as needed
 
-## Controls
+### Controls
 
 - **Right-click map**: Add start point or waypoint
 - **Start**: Begin RL training loop
 - **Pause/Resume**: Pause or continue training
 - **Reset**: Reset simulation state
 
-## Configuration
+### Configuration
 
 Training configurations are loaded from YAML files in the `assets/` folder.
 
-## Architecture
+### Architecture
 
 - **Input**: 9 features (7 sensors + angle to target + distance to target)
 - **Network**: 128 → 256 → 256 → 128 → 5 (actions)
 - **Actions**: Left, Straight, Right, Sharp Left, Sharp Right
 - **Sensors**: 7 distance sensors at [-45°, -30°, -15°, 0°, 15°, 30°, 45°]
 
-## Reward Structure
+### Reward Structure
 
 - Step penalty: -0.1
 - Clear path ahead: +20 (based on center sensor)
@@ -53,7 +69,7 @@ Training configurations are loaded from YAML files in the `assets/` folder.
 - Collision: -100 (episode ends)
 - Reach waypoint: +100 (continues to next waypoint)
 
-## How It Works
+### How It Works
 
 1. **Exploration**: Uses temperature-based Softmax action selection
    - High temperature (50.0) → More exploration
@@ -68,13 +84,13 @@ Training configurations are loaded from YAML files in the `assets/` folder.
    - Switches to next waypoint when within 20 pixels
    - Episode ends when all waypoints reached or collision occurs
 
-## Results
+### Results
 
 Training demonstration and final performance: [YouTube Link](https://youtu.be/LySRaQBh7Ko)
 
-## Assignment Questions
+### Assignment Questions
 
-### What happens when boundary-signal is weak compared to the last reward?
+#### What happens when boundary-signal is weak compared to the last reward?
 
 The boundary signal (sensor reward weight, currently 20) guides obstacle avoidance. 
 If weak relative to target reward (100):
@@ -82,7 +98,7 @@ If weak relative to target reward (100):
 - More crashes, especially in tight spaces
 - Faster but riskier navigation
 
-### What happens when Temperature is reduced?
+#### What happens when Temperature is reduced?
 
 Lower temperature → more greedy/exploitative behavior:
 - Temperature = 50: Explores broadly, tries suboptimal actions
@@ -92,7 +108,7 @@ Lower temperature → more greedy/exploitative behavior:
 Reducing temperature is necessary for convergence - constant high temperature 
 prevents the agent from fully exploiting its learned policy.
 
-### What is the effect of reducing gamma?
+#### What is the effect of reducing gamma?
 
 Gamma (discount factor, currently 0.95) controls future reward valuation:
 - High gamma (0.95-0.99): Values long-term rewards, plans ahead
@@ -104,7 +120,7 @@ Low gamma would cause the agent to:
 - Not plan paths through narrow passages
 - Get stuck in local optima (e.g., getting closer but hitting walls)
 
-## Known Issues / Notes
+### Known Issues / Notes
 
 - Sensors detect brightness (white = road, dark = obstacle)
 - Car uses center sensor (index 3) for path-ahead reward
