@@ -44,7 +44,7 @@ class Experience:
 @dataclass
 class BrainUpdateResult:
     score: float
-    epsilon: float
+    temperature: float
     done: bool
     all_waypoints_reached: bool
 
@@ -55,7 +55,9 @@ class Brain:
         world: WorldState,
         logger: Logger,
         lr: float,
-        epsilon: float,
+        temperature: float,
+        temperature_min: float,
+        temperature_decay: float,
         turn_speed: float,
         sharp_turn_speed: float,
         car_speed: float,
@@ -90,8 +92,10 @@ class Brain:
         self.prev_dist = None
         self.current_target_idx = 0
         self.targets_reached = 0
+        self.current_temp = temperature
 
-        self.epsilon = epsilon
+        self.temp_min = temperature_min
+        self.temp_decay = temperature_decay
         self.turn_speed = turn_speed
         self.sharp_turn_speed = sharp_turn_speed
         self.car_speed = car_speed
@@ -108,12 +112,10 @@ class Brain:
         action = 0
         prev_target_idx = self.current_target_idx
 
-        if random.random() < self.epsilon:
-            action = random.randint(0, 4)
-        else:
-            with torch.no_grad():
-                q = self.policy_net(torch.FloatTensor(state).unsqueeze(0))
-                action = q.argmax().item()
+        with torch.no_grad():
+            q = self.policy_net(torch.FloatTensor(state).unsqueeze(0))
+            probs = F.softmax(q / self.current_temp, dim=-1)
+            action = torch.multinomial(probs, 1).item()
 
         next_state, reward, done = self._step(action)
         self.current_episode_buffer.append(
@@ -126,6 +128,9 @@ class Brain:
             )
         )
         self._optimize()
+
+        if self.current_temp > self.temp_min:
+            self.current_temp *= self.temp_decay
 
         if self.current_target_idx != prev_target_idx:
             self.logger.info(
@@ -182,7 +187,7 @@ class Brain:
 
         return BrainUpdateResult(
             score=self.score,
-            epsilon=self.epsilon,
+            temperature=self.current_temp,
             done=done,
             all_waypoints_reached=all_waypoints_reached,
         )
@@ -281,9 +286,6 @@ class Brain:
         self.optimizer.zero_grad()
         loss.backward()
         self.optimizer.step()
-
-        if self.epsilon > 0.001:
-            self.epsilon *= 0.9995
 
         return loss.item()
 

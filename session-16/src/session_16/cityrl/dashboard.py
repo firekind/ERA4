@@ -27,7 +27,9 @@ from session_16.cityrl.world import WorldState
 class Config:
     map: str
     lr: float
-    epsilon: float
+    temperature: float
+    temperature_min: float
+    temperature_decay: float
     turn_speed: int
     sharp_turn_speed: int
     car_speed: int
@@ -112,7 +114,9 @@ class Dashboard(QWidget):
             self.world,
             self.logger,
             lr=config.lr,
-            epsilon=config.epsilon,
+            temperature=config.temperature,
+            temperature_min=config.temperature_min,
+            temperature_decay=config.temperature_decay,
             turn_speed=config.turn_speed,
             sharp_turn_speed=config.sharp_turn_speed,
             car_speed=config.car_speed,
@@ -153,7 +157,7 @@ class Dashboard(QWidget):
         res = self.brain.update()
         if res is not None:
             self.info_view.update_chart(res.score)
-            self.info_view.update_eps(res.epsilon)
+            self.info_view.update_temp(res.temperature)
             self.info_view.update_last_reward(res.score)
 
             if self.recorder is not None:
@@ -257,9 +261,9 @@ class InfoWidget(QWidget):
 
         params_layout = QGridLayout()
 
-        params_layout.addWidget(Heading2("epsilon"), 0, 0)
-        self.eps_val = QLabel("")
-        params_layout.addWidget(self.eps_val, 0, 1)
+        params_layout.addWidget(Heading2("temperature"), 0, 0)
+        self.temp_val = QLabel("")
+        params_layout.addWidget(self.temp_val, 0, 1)
 
         params_layout.addWidget(Heading2("last reward"), 1, 0)
         self.last_reward = QLabel("")
@@ -273,8 +277,8 @@ class InfoWidget(QWidget):
     def update_chart(self, new_score: float):
         self.chart.update_chart(new_score)
 
-    def update_eps(self, eps: float):
-        self.eps_val.setText(f"{eps:.3f}")
+    def update_temp(self, temp: float):
+        self.temp_val.setText(f"{temp:.3f}")
 
     def update_last_reward(self, value: float):
         self.last_reward.setText(f"{value:.3f}")

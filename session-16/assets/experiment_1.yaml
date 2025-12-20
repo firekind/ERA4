@@ -3,7 +3,9 @@ car_width: 14
 car_height: 8
 sensor_dist: 15
 lr: 1.e-3
-epsilon: 1.0
+temperature: 50.0
+temperature_min: 0.001
+temperature_decay: 0.9995
 turn_speed: 8
 sharp_turn_speed: 20
 car_speed: 2
