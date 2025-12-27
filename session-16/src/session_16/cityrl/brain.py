@@ -115,7 +115,7 @@ class Brain:
         with torch.no_grad():
             q = self.policy_net(torch.FloatTensor(state).unsqueeze(0))
             probs = F.softmax(q / self.current_temp, dim=-1)
-            action = torch.multinomial(probs, 1).item()
+            action = int(torch.multinomial(probs, 1).item())
 
         next_state, reward, done = self._step(action)
         self.current_episode_buffer.append(
