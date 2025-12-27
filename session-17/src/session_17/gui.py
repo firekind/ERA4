@@ -1,3 +1,4 @@
+import logging
 import os
 import time
 from collections import deque
@@ -39,8 +40,9 @@ class Config:
 
 class App:
     def __init__(self):
+        logging.getLogger().setLevel(logging.INFO)
         self._dashboard: Dashboard | None = None
-        self._sim_phase: SimPhaseNull | SimSetupPhase | SimActivePhase = SimPhaseNull()
+        self._sim_phase: SimNullPhase | SimSetupPhase | SimActivePhase = SimNullPhase()
         self._fps = 60
 
     def run(self):
@@ -56,7 +58,7 @@ class App:
 
         while dpg.is_dearpygui_running():
             match self._sim_phase:
-                case SimPhaseNull():
+                case SimNullPhase():
                     frame = self._sim_phase.update()
                     self._dashboard.update_sim_view(frame)
                 case SimSetupPhase():
@@ -83,6 +85,7 @@ class App:
             show_error_popup("map file does not exist")
             return
 
+        logging.info("loaded config")
         map = cv2.cvtColor(cv2.imread(config.map), cv2.COLOR_BGR2RGB).astype(np.uint8)
         self._sim_phase = SimSetupPhase(map=map, config=config)
 
@@ -126,7 +129,7 @@ class App:
                 return False
 
     def _transition_to_null_phase(self):
-        self._sim_phase = SimPhaseNull()
+        self._sim_phase = SimNullPhase()
         if self._dashboard is not None:
             self._dashboard.reset()
 
@@ -152,7 +155,7 @@ class App:
         dpg.destroy_context()
 
 
-class SimPhaseNull:
+class SimNullPhase:
     def update(self) -> NDArray[np.uint8]:
         return np.zeros((0, 0, 4), dtype=np.uint8)
 
@@ -288,9 +291,7 @@ class Dashboard:
                 with dpg.menu(label="Simulation"):
                     dpg.add_menu_item(
                         label="Hard Reset",
-                        callback=lambda: self._on_hard_reset()
-                        if self._on_hard_reset is not None
-                        else None,
+                        callback=self._on_hard_reset_selected,
                     )
 
             with dpg.child_window(border=False, height=-200):
@@ -327,6 +328,11 @@ class Dashboard:
     def _load_config_file(self, _, data: dict):
         if self._on_config_load is not None:
             self._on_config_load(data["file_path_name"])
+
+    def _on_hard_reset_selected(self):
+        logging.warning("hard resetting simulator")
+        if self._on_hard_reset is not None:
+            self._on_hard_reset()
 
 
 class SimView:
@@ -653,8 +659,17 @@ class ConfigPanel:
 
 
 class LogPanel:
+    def __init__(self):
+        self._log_handler: DearPyGuiLogHandler | None = None
+
     def build_ui(self):
-        pass
+        self._setup_log_handler()
+
+    def _setup_log_handler(self):
+        parent = dpg.last_container()
+        if self._log_handler is None:
+            self._log_handler = DearPyGuiLogHandler(parent)
+            logging.getLogger().addHandler(self._log_handler)
 
 
 class Clock:
@@ -689,3 +704,37 @@ def show_error_popup(message: str):
             width=-1,
             callback=lambda: dpg.delete_item(dpg.get_active_window()),
         )
+
+
+class DearPyGuiLogHandler(logging.Handler):
+    def __init__(self, parent_id, max_lines=100):
+        super().__init__()
+        self.parent_id = parent_id
+        self.max_lines = max_lines
+        self.log_items = deque(maxlen=max_lines)
+
+        # Create themes for each log level
+        self.themes = {
+            logging.DEBUG: self._create_theme((150, 150, 150)),
+            logging.INFO: self._create_theme((255, 255, 255)),
+            logging.WARNING: self._create_theme((255, 255, 0)),
+            logging.ERROR: self._create_theme((255, 100, 100)),
+            logging.CRITICAL: self._create_theme((255, 0, 0)),
+        }
+
+    def _create_theme(self, color):
+        with dpg.theme() as theme:
+            with dpg.theme_component(dpg.mvText):
+                dpg.add_theme_color(dpg.mvThemeCol_Text, color)
+        return theme
+
+    def emit(self, record):
+        log_entry = self.format(record)
+
+        if len(self.log_items) == self.max_lines:
+            dpg.delete_item(self.log_items[0])
+
+        text_id = dpg.add_text(log_entry, parent=self.parent_id)
+        dpg.bind_item_theme(text_id, self.themes[record.levelno])
+        self.log_items.append(text_id)
+        dpg.set_y_scroll(self.parent_id, -1.0)

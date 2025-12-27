@@ -1,3 +1,4 @@
+import logging
 import math
 import random
 from collections import deque
@@ -68,7 +69,7 @@ class Env(gym.Env):
         self.car_pos = self.start_point
         self.car_angle = 0.0
         self.target_waypoint_idx = 0
-        self.targets_reached = 0
+        self.waypoints_reached = 0
         self.prev_dist: float | None = None
 
     def step(
@@ -126,7 +127,15 @@ class Env(gym.Env):
                 reward -= 10
             self.prev_dist = dist
 
-        return next_state, reward, done, False, {}
+        return (
+            next_state,
+            reward,
+            done,
+            False,
+            dict(
+                num_waypoints_reached=self.waypoints_reached,
+            ),
+        )
 
     def render(self) -> NDArray[np.uint8] | None:
         if self.render_mode == "rgb_array":
@@ -140,7 +149,7 @@ class Env(gym.Env):
         self.car_pos = self.start_point
         self.car_angle = float(random.randint(0, 360))
         self.target_waypoint_idx = 0
-        self.targets_reached = 0
+        self.waypoints_reached = 0
         self.prev_dist = None
 
         state, _ = self._get_state()
@@ -201,7 +210,7 @@ class Env(gym.Env):
     def _switch_to_next_waypoint(self) -> bool:
         if self.target_waypoint_idx < len(self.waypoints) - 1:
             self.target_waypoint_idx += 1
-            self.targets_reached += 1
+            self.waypoints_reached += 1
             return True
         return False
 
@@ -246,6 +255,31 @@ class Experience(NamedTuple):
     done: bool
 
 
+class AgentStats(NamedTuple):
+    priority_memory_len: int
+    memory_len: int
+
+    @property
+    def total_memory_len(self) -> int:
+        return self.priority_memory_len + self.memory_len
+
+    @property
+    def priority_pct(self) -> float:
+        return (
+            (self.priority_memory_len / self.total_memory_len * 100)
+            if self.total_memory_len > 0
+            else 0
+        )
+
+    @property
+    def success_rate(self) -> float:
+        return self.priority_memory_len / max(self.total_memory_len, 1)
+
+    @property
+    def sampling_ratio(self) -> float:
+        return 0.3 * (self.success_rate * 0.4)
+
+
 class Agent:
     def __init__(
         self,
@@ -276,7 +310,7 @@ class Agent:
         self.gamma = gamma
         self.tau = tau
 
-    def update(self):
+    def update(self) -> AgentStats | None:
         memory_size = len(self.memory)
         priority_mem_size = len(self.priority_memory)
         total_mem_size = memory_size + priority_mem_size
@@ -324,6 +358,8 @@ class Agent:
 
         if self.temp_current > self.temp_min:
             self.temp_current *= self.temp_decay
+
+        return AgentStats(priority_memory_len=priority_mem_size, memory_len=memory_size)
 
     def select_action(self, state: NDArray[np.float32]) -> np.uint8:
         with torch.no_grad():
@@ -417,26 +453,43 @@ class DiscreteTrainer(Trainer):
         self.num_episodes = 0
         self.done = False
         self.state, _ = self.env.reset()
+        self.num_waypoints_reached = 0
 
     def step(self) -> tuple[TrainerStats, NDArray[np.uint8] | None]:
         action = self.agent.select_action(self.state)
-        next_state, reward, self.done, _, _ = self.env.step(action)
+        next_state, reward, self.done, _, info = self.env.step(action)
+        reward = float(reward)
         self.agent.remember(
-            Experience(self.state, action, float(reward), next_state, self.done)
+            Experience(self.state, action, reward, next_state, self.done)
         )
-        self.agent.update()
+        stats = self.agent.update()
+        if stats is not None:
+            logging.debug(
+                f"score: {reward:.2f} | mem: {stats.priority_memory_len}P/{stats.memory_len}R ({stats.priority_pct:.1f}) | sample: {stats.sampling_ratio * 100:.0f}%P"
+            )
         self.num_steps += 1
+
+        if self.num_waypoints_reached != info["num_waypoints_reached"]:
+            self.num_waypoints_reached = info["num_waypoints_reached"]
+            logging.info(f"reached waypoint {self.num_waypoints_reached}")
+
         if self.done:
+            if reward < 0.0:
+                logging.debug("crashed! resetting to origin")
+            else:
+                logging.info("all waypoints reached!")
+
             self.agent.finalize_episode()
             self.num_episodes += 1
             self.state, _ = self.env.reset()
             self.done = False
+            self.num_waypoints_reached = 0
         else:
             self.state = next_state
 
         return TrainerStats(
             step=self.num_steps,
             episode=self.num_episodes,
-            reward=float(reward),
+            reward=reward,
             temperature=self.agent.temp_current,
         ), self.env.render()
