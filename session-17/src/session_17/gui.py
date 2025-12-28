@@ -14,35 +14,59 @@ import numpy as np
 import yaml
 from numpy.typing import NDArray
 
-import session_17.dpg_utils as dpg_utils
-from session_17 import rendering
-from session_17.discrete_env import DiscreteTrainer, DiscreteTrainerConfig
+from session_17 import dpg_utils, rendering
+from session_17.discrete_env import (
+    DiscreteAgentConfig,
+    DiscreteEnvConfig,
+    DiscreteTrainer,
+)
 from session_17.trainer import Trainer, TrainerStats
 
 # =============================================================================
-# Data Structures & Types
+# Configs
 # =============================================================================
 
 
 @dataclass
+class RawConfig:
+    type: Literal["discrete"]
+    env: dict[str, Any]
+    agent: dict[str, Any]
+
+
+@dataclass
 class Config:
-    trainer: Literal["discrete"]
-    map: str
-    config: dict[str, Any]
+    env: DiscreteEnvConfig
+    agent: DiscreteAgentConfig
 
     @staticmethod
     def from_yaml_file(path: str) -> "Config":
-        config: Config
         with open(path) as f:
-            data = yaml.safe_load(f)
-            config = Config(**data)
+            raw_config = dacite.from_dict(RawConfig, yaml.safe_load(f))
 
-        if config.map[0] != "/":
-            config.map = os.path.join(
-                os.path.dirname(path), config.map
-            )  # relative to config file
+        match raw_config.type:
+            case "discrete":
+                env_config = dacite.from_dict(DiscreteEnvConfig, raw_config.env)
+                agent_config = dacite.from_dict(DiscreteAgentConfig, raw_config.agent)
 
-        return config
+                if env_config.map[0] != "/":
+                    env_config.map = os.path.join(
+                        os.path.dirname(path), env_config.map
+                    )  # relative to config file
+
+                return Config(env=env_config, agent=agent_config)
+
+    @property
+    def car_width(self) -> int:
+        return self.env.car_width
+
+    @property
+    def car_height(self) -> int:
+        return self.env.car_height
+
+    @property
+    def map(self) -> str:
+        return self.env.map
 
 
 # =============================================================================
@@ -145,9 +169,7 @@ class NullPhase:
 
 
 class SetupPhase:
-    def __init__(
-        self, map: NDArray[np.uint8], config: "Config", max_waypoints: int = 6
-    ):
+    def __init__(self, map: NDArray[np.uint8], config: Config, max_waypoints: int = 6):
         self.map = map
         self.config = config
         self.start_point: tuple[int, int] | None = None
@@ -176,7 +198,12 @@ class SetupPhase:
         frame = self.map.copy()
 
         if self.start_point is not None:
-            rendering.render_car(frame, self.start_point)
+            rendering.render_car(
+                frame,
+                self.start_point,
+                width=self.config.car_width,
+                height=self.config.car_height,
+            )
 
         for i, wp in enumerate(self.waypoints):
             rendering.render_waypoint(frame, wp, str(i + 1))
@@ -192,6 +219,7 @@ class SetupPhase:
     def _on_add_startpoint(self):
         assert self._mouse_pos is not None
         self.start_point = self._mouse_pos
+        logging.info(f"start point set to {self._mouse_pos}")
         self._mouse_pos = None
 
     def _on_add_waypoint(self):
@@ -202,6 +230,7 @@ class SetupPhase:
             return
 
         self.waypoints.append(self._mouse_pos)
+        logging.info(f"added waypoint at {self._mouse_pos}")
         self._mouse_pos = None
 
 
@@ -216,11 +245,10 @@ class ActivePhase:
         self._trainer: Trainer
         self._running = True
 
-        match config.trainer:
-            case "discrete":
-                trainer_config = dacite.from_dict(DiscreteTrainerConfig, config.config)
+        match (config.env, config.agent):
+            case (DiscreteEnvConfig(), DiscreteAgentConfig()):
                 self._trainer = DiscreteTrainer(
-                    map, start_point, waypoints, trainer_config
+                    map, start_point, waypoints, config.env, config.agent
                 )
 
     def update(self) -> SimStepResult | None:
@@ -359,7 +387,7 @@ class ControlPanel:
 
         with dpg.theme() as control_table_theme:
             with dpg.theme_component(dpg.mvTable):
-                dpg.add_theme_style(dpg.mvStyleVar_CellPadding, y=5)
+                dpg.add_theme_style(dpg.mvStyleVar_CellPadding, x=5, y=5)
 
         with dpg.table(header_row=False, policy=dpg.mvTable_SizingStretchProp):
             dpg.bind_item_theme(dpg.last_item(), control_table_theme)
@@ -367,9 +395,7 @@ class ControlPanel:
             dpg.add_table_column(no_header_label=True)
 
             with dpg.table_row():
-                with dpg.group(horizontal=True):
-                    dpg.add_text("Log Level")
-                    dpg.add_spacer()
+                dpg.add_text("Log Level")
                 dpg.add_combo(
                     ["error", "warning", "info", "debug"],
                     default_value="info",
@@ -377,19 +403,16 @@ class ControlPanel:
                 )
 
             with dpg.table_row():
-                with dpg.group(horizontal=True):
-                    dpg.add_text("FPS")
-                    dpg.add_spacer()
-                with dpg.group(horizontal=True):
-                    self._fps_slider = dpg.add_slider_int(
-                        min_value=self._min_fps,
-                        max_value=self._max_fps,
-                        default_value=self._init_fps,
-                        width=-1,
-                        callback=lambda _, value: self._on_fps_change(value)
-                        if self._on_fps_change is not None
-                        else None,
-                    )
+                dpg.add_text("FPS")
+                self._fps_slider = dpg.add_slider_int(
+                    min_value=self._min_fps,
+                    max_value=self._max_fps,
+                    default_value=self._init_fps,
+                    width=-1,
+                    callback=lambda _, value: self._on_fps_change(value)
+                    if self._on_fps_change is not None
+                    else None,
+                )
 
     def reset(self):
         dpg_utils.set_item_label(self._start_button, "Start / Resume")
@@ -594,9 +617,84 @@ class StatsPanel:
         dpg_utils.fit_axis_data(self._ema_reward_history_y_axis)
 
 
-class ConfigPanel:
+class DiscreteConfigPanel:
+    def __init__(
+        self, env_config: DiscreteEnvConfig, agent_config: DiscreteAgentConfig
+    ):
+        self._env_config = env_config
+        self._agent_config = agent_config
+
     def build_ui(self):
-        pass
+        with dpg.theme() as table_theme:
+            with dpg.theme_component(dpg.mvTable):
+                dpg.add_theme_style(dpg.mvStyleVar_CellPadding, x=5, y=5)
+
+        with dpg.table(header_row=False, policy=dpg.mvTable_SizingStretchProp):
+            dpg.bind_item_theme(dpg.last_item(), table_theme)
+            dpg.add_table_column(no_header_label=True)
+            dpg.add_table_column(no_header_label=True)
+
+            self._add_rows(
+                ("car width", str(self._env_config.car_width)),
+                ("car height", str(self._env_config.car_height)),
+                ("sensor distance", str(self._env_config.sensor_dist)),
+                ("car speed", f"{self._env_config.car_speed:.2f}"),
+                ("car turn speed", f"{self._env_config.car_turn_speed:.2f}"),
+                (
+                    "car sharp turn speed",
+                    f"{self._env_config.car_sharp_turn_speed:.2f}",
+                ),
+            )
+
+        dpg.add_spacer()
+        dpg.add_separator()
+        dpg.add_spacer()
+
+        with dpg.table(header_row=False, policy=dpg.mvTable_SizingStretchProp):
+            dpg.bind_item_theme(dpg.last_item(), table_theme)
+            dpg.add_table_column(no_header_label=True)
+            dpg.add_table_column(no_header_label=True)
+
+            self._add_rows(
+                ("lr", f"{self._agent_config.lr:.2E}"),
+                ("temperature", f"{self._agent_config.temperature:.2f}"),
+                ("min temperature", f"{self._agent_config.temperature_min:.2f}"),
+                ("temperature decay", f"{self._agent_config.temperature_decay:.2f}"),
+                ("batch size", str(self._agent_config.batch_size)),
+                ("gamma", f"{self._agent_config.gamma:.2f}"),
+                ("tau", f"{self._agent_config.tau:.2f}"),
+            )
+
+    def _add_rows(self, *args: tuple[str, str]):
+        for a in args:
+            with dpg.table_row():
+                dpg.add_text(a[0])
+                dpg.add_text(a[1])
+
+
+class ConfigPanel:
+    def __init__(self):
+        self._config: Config | None = None
+        self._inner: DiscreteConfigPanel | None = None
+        self._panel: str | int | None = None
+
+    def update(self, config: Config, parent: str | int):
+        if self._panel is not None:
+            dpg.delete_item(self._panel)
+
+        env_config = config.env
+        agent_config = config.agent
+        match (env_config, agent_config):
+            case (DiscreteEnvConfig(), DiscreteAgentConfig()):
+                self._inner = DiscreteConfigPanel(env_config, agent_config)
+                with dpg.group(parent=parent) as panel:
+                    self._panel = panel
+                    self._inner.build_ui()
+
+    def reset(self):
+        self._inner = None
+        if self._panel is not None:
+            dpg.delete_item(self._panel)
 
 
 class LogPanel:
@@ -630,6 +728,7 @@ class Dashboard:
         )
         self._stats_panel = StatsPanel()
         self._config_panel = ConfigPanel()
+        self._config_child_window: str | int | None = None
         self._log_panel = LogPanel()
         self._on_config_load = on_config_load
         self._on_hard_reset = on_hard_reset
@@ -670,8 +769,7 @@ class Dashboard:
                             with dpg.child_window(height=105):
                                 self._control_panel.build_ui()
                             dpg.add_spacer()
-                            with dpg.child_window():
-                                self._config_panel.build_ui()
+                            self._config_child_window = dpg.add_child_window()
                         with dpg.child_window():
                             self._sim_view.build_ui()
                         with dpg.child_window():
@@ -686,9 +784,15 @@ class Dashboard:
     def update_stats_view(self, stats: TrainerStats):
         self._stats_panel.update(stats)
 
+    def update_config_view(self, config: Config):
+        if self._config_child_window is None:
+            return
+        self._config_panel.update(config, self._config_child_window)
+
     def reset(self):
         self._control_panel.reset()
         self._stats_panel.reset()
+        self._config_panel.reset()
 
     def _load_config_file(self, _, data: dict):
         if self._on_config_load is not None:
@@ -777,6 +881,9 @@ class App:
         logging.info("loaded config")
         map = cv2.cvtColor(cv2.imread(config.map), cv2.COLOR_BGR2RGB).astype(np.uint8)
         self._current_phase = SetupPhase(map=map, config=config)
+
+        if self._dashboard is not None:
+            self._dashboard.update_config_view(config)
 
     def _transition_to_active_phase(self) -> bool:
         phase = self._current_phase
@@ -867,4 +974,7 @@ class App:
         return self
 
     def __exit__(self, exc_type, exc_value, traceback):
+        self._is_running.clear()
+        if self._sim_loop_thread is not None:
+            self._sim_loop_thread.join()
         dpg.destroy_context()

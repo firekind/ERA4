@@ -402,21 +402,26 @@ class DQNModel(nn.Module):
 
 
 @dataclass
-class DiscreteTrainerConfig:
+class DiscreteEnvConfig:
+    map: str
+    car_width: int
+    car_height: int
+    sensor_dist: int
+    car_speed: float
+    car_turn_speed: float
+    car_sharp_turn_speed: float
+    render_mode: Literal["rgb_array"] | None = None
+
+
+@dataclass
+class DiscreteAgentConfig:
     lr: float
     temperature: float
     temperature_min: float
     temperature_decay: float
-    turn_speed: int
-    sharp_turn_speed: int
-    car_speed: int
     batch_size: int
     gamma: float
     tau: float
-    sensor_dist: int
-    car_height: int = 14
-    car_width: int = 8
-    render_mode: Literal["rgb_array"] | None = None
 
 
 class DiscreteTrainer(Trainer):
@@ -425,28 +430,29 @@ class DiscreteTrainer(Trainer):
         map: NDArray[np.uint8],
         start_point: tuple[int, int],
         waypoints: list[tuple[int, int]],
-        config: DiscreteTrainerConfig,
+        env_config: DiscreteEnvConfig,
+        agent_config: DiscreteAgentConfig,
     ):
-        self.agent = Agent(
-            batch_size=config.batch_size,
-            lr=config.lr,
-            temp_init=config.temperature,
-            temp_min=config.temperature_min,
-            temp_decay=config.temperature_decay,
-            gamma=config.gamma,
-            tau=config.tau,
-        )
         self.env = Env(
             map=map,
             start_point=start_point,
             waypoints=waypoints,
-            car_height=config.car_height,
-            car_width=config.car_width,
-            sensor_dist=config.sensor_dist,
-            car_speed=config.car_speed,
-            car_turn_speed=config.turn_speed,
-            car_sharp_turn_speed=config.sharp_turn_speed,
-            render_mode=config.render_mode,
+            car_height=env_config.car_height,
+            car_width=env_config.car_width,
+            sensor_dist=env_config.sensor_dist,
+            car_speed=env_config.car_speed,
+            car_turn_speed=env_config.car_turn_speed,
+            car_sharp_turn_speed=env_config.car_sharp_turn_speed,
+            render_mode=env_config.render_mode,
+        )
+        self.agent = Agent(
+            batch_size=agent_config.batch_size,
+            lr=agent_config.lr,
+            temp_init=agent_config.temperature,
+            temp_min=agent_config.temperature_min,
+            temp_decay=agent_config.temperature_decay,
+            gamma=agent_config.gamma,
+            tau=agent_config.tau,
         )
 
         self.num_steps = 0

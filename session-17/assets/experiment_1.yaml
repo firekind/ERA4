@@ -1,17 +1,19 @@
-trainer: discrete
-map: ./city_map_1.jpeg
-config:
+type: discrete
+env:
+  map: ./city_map_1.jpeg
   car_width: 14
   car_height: 8
   sensor_dist: 15
+  car_speed: 2
+  car_turn_speed: 8
+  car_sharp_turn_speed: 20
+  render_mode: "rgb_array"
+
+agent:
   lr: 1.e-3
   temperature: 50.0
   temperature_min: 0.001
   temperature_decay: 0.9995
-  turn_speed: 8
-  sharp_turn_speed: 20
-  car_speed: 2
   batch_size: 512
   gamma: 0.95
   tau: 3.e-3
-  render_mode: "rgb_array"
