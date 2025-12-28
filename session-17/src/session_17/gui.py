@@ -356,11 +356,25 @@ class ControlPanel:
 
         dpg.add_spacer()
         dpg.add_separator()
-        dpg.add_spacer(height=5)
+
+        with dpg.theme() as control_table_theme:
+            with dpg.theme_component(dpg.mvTable):
+                dpg.add_theme_style(dpg.mvStyleVar_CellPadding, y=5)
 
         with dpg.table(header_row=False, policy=dpg.mvTable_SizingStretchProp):
+            dpg.bind_item_theme(dpg.last_item(), control_table_theme)
             dpg.add_table_column(no_header_label=True)
             dpg.add_table_column(no_header_label=True)
+
+            with dpg.table_row():
+                with dpg.group(horizontal=True):
+                    dpg.add_text("Log Level")
+                    dpg.add_spacer()
+                dpg.add_combo(
+                    ["error", "warning", "info", "debug"],
+                    default_value="info",
+                    callback=self._on_log_level_change,
+                )
 
             with dpg.table_row():
                 with dpg.group(horizontal=True):
@@ -396,6 +410,19 @@ class ControlPanel:
                 return
             dpg.set_item_label(sender, "Pause")
             self._is_sim_running = True
+
+    def _on_log_level_change(
+        self, _, value: Literal["error", "warning", "info", "debug"]
+    ):
+        match value:
+            case "error":
+                logging.getLogger().setLevel(logging.ERROR)
+            case "warning":
+                logging.getLogger().setLevel(logging.WARNING)
+            case "info":
+                logging.getLogger().setLevel(logging.INFO)
+            case "debug":
+                logging.getLogger().setLevel(logging.DEBUG)
 
 
 class StatsPanel:
@@ -640,7 +667,7 @@ class Dashboard:
 
                     with dpg.table_row():
                         with dpg.group():
-                            with dpg.child_window(height=85):
+                            with dpg.child_window(height=105):
                                 self._control_panel.build_ui()
                             dpg.add_spacer()
                             with dpg.child_window():
@@ -680,7 +707,6 @@ class Dashboard:
 
 class App:
     def __init__(self):
-        logging.getLogger().setLevel(logging.INFO)
         self._dashboard: Dashboard | None = None
 
         self._sim_loop_thread: threading.Thread | None = None
