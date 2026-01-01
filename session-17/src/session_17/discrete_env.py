@@ -294,8 +294,8 @@ class Agent:
         input_dim = 9  # 7 sensors + angle_to_target + distance_to_target
         n_actions = 5  # 0: left, 1: straight, 2: right, 3: sharp left, 4: sharp right
 
-        self.policy_net = DQNModel(input_dim, n_actions)
-        self.target_net = DQNModel(input_dim, n_actions)
+        self.policy_net = DQNModel(input_dim, n_actions).to(_device())
+        self.target_net = DQNModel(input_dim, n_actions).to(_device())
         self.target_net.load_state_dict(self.policy_net.state_dict())
         self.optimizer = optim.Adam(self.policy_net.parameters(), lr=lr)
 
@@ -334,11 +334,13 @@ class Agent:
         else:
             batch.extend(self.memory)
 
-        state = torch.FloatTensor(np.array([e.state for e in batch]))
-        action = torch.LongTensor([e.action for e in batch]).unsqueeze(1)
-        reward = torch.FloatTensor([e.reward for e in batch]).unsqueeze(1)
-        next_state = torch.FloatTensor(np.array([e.next_state for e in batch]))
-        done = torch.FloatTensor([e.done for e in batch]).unsqueeze(1)
+        state = torch.FloatTensor(np.array([e.state for e in batch])).to(_device())
+        action = torch.LongTensor([e.action for e in batch]).unsqueeze(1).to(_device())
+        reward = torch.FloatTensor([e.reward for e in batch]).unsqueeze(1).to(_device())
+        next_state = torch.FloatTensor(np.array([e.next_state for e in batch])).to(
+            _device()
+        )
+        done = torch.FloatTensor([e.done for e in batch]).unsqueeze(1).to(_device())
 
         q = self.policy_net(state).gather(1, action)
         next_q = self.target_net(next_state).max(1)[0].detach().unsqueeze(1)
@@ -363,7 +365,7 @@ class Agent:
 
     def select_action(self, state: NDArray[np.float32]) -> np.uint8:
         with torch.no_grad():
-            q = self.policy_net(torch.FloatTensor(state).unsqueeze(0))
+            q = self.policy_net(torch.FloatTensor(state).unsqueeze(0).to(_device()))
             probs = F.softmax(q / self.temp_current, dim=-1)
             return np.uint8(torch.multinomial(probs, 1).item())
 
@@ -497,5 +499,16 @@ class DiscreteTrainer(Trainer):
             step=self.num_steps,
             episode=self.num_episodes,
             reward=reward,
-            temperature=self.agent.temp_current,
+            others=dict(
+                temperature=self.agent.temp_current,
+            ),
         ), self.env.render()
+
+
+def _device() -> str:
+    if torch.cuda.is_available():
+        return "cuda"
+    elif torch.mps.is_available():
+        return "mps"
+    else:
+        return "cpu"

@@ -15,6 +15,12 @@ import yaml
 from numpy.typing import NDArray
 
 from session_17 import dpg_utils, rendering
+from session_17.continuous_env import (
+    ContinuousAgentConfig,
+    ContinuousEnvConfig,
+    ContinuousTrainer,
+    ContinuousTrainerConfig,
+)
 from session_17.discrete_env import (
     DiscreteAgentConfig,
     DiscreteEnvConfig,
@@ -29,15 +35,17 @@ from session_17.trainer import Trainer, TrainerStats
 
 @dataclass
 class RawConfig:
-    type: Literal["discrete"]
+    type: Literal["discrete", "continuous"]
     env: dict[str, Any]
     agent: dict[str, Any]
+    trainer: dict[str, Any] | None = None
 
 
 @dataclass
 class Config:
-    env: DiscreteEnvConfig
-    agent: DiscreteAgentConfig
+    env: DiscreteEnvConfig | ContinuousEnvConfig
+    agent: DiscreteAgentConfig | ContinuousAgentConfig
+    trainer: ContinuousTrainerConfig | None = None
 
     @staticmethod
     def from_yaml_file(path: str) -> "Config":
@@ -55,6 +63,22 @@ class Config:
                     )  # relative to config file
 
                 return Config(env=env_config, agent=agent_config)
+
+            case "continuous":
+                env_config = dacite.from_dict(ContinuousEnvConfig, raw_config.env)
+                agent_config = dacite.from_dict(ContinuousAgentConfig, raw_config.agent)
+                trainer_config = dacite.from_dict(
+                    ContinuousTrainerConfig, raw_config.trainer or {}
+                )
+
+                if env_config.map[0] != "/":
+                    env_config.map = os.path.join(
+                        os.path.dirname(path), env_config.map
+                    )  # relative to config file
+
+                return Config(
+                    env=env_config, agent=agent_config, trainer=trainer_config
+                )
 
     @property
     def car_width(self) -> int:
@@ -245,11 +269,26 @@ class ActivePhase:
         self._trainer: Trainer
         self._running = True
 
-        match (config.env, config.agent):
-            case (DiscreteEnvConfig(), DiscreteAgentConfig()):
+        match (config.env, config.agent, config.trainer):
+            case (DiscreteEnvConfig(), DiscreteAgentConfig(), None):
                 self._trainer = DiscreteTrainer(
                     map, start_point, waypoints, config.env, config.agent
                 )
+            case (
+                ContinuousEnvConfig(),
+                ContinuousAgentConfig(),
+                ContinuousTrainerConfig(),
+            ):
+                self._trainer = ContinuousTrainer(
+                    map,
+                    start_point,
+                    waypoints,
+                    config.env,
+                    config.agent,
+                    config.trainer,
+                )
+            case _:
+                raise RuntimeError("cannot create trainer: invalid configuration")
 
     def update(self) -> SimStepResult | None:
         if self._running:
@@ -450,24 +489,26 @@ class ControlPanel:
 
 class StatsPanel:
     def __init__(self):
+        self._stats_table: str | int | None = None
         self._step_item_id: str | int | None = None
         self._episode_item_id: str | int | None = None
         self._reward_item_id: str | int | None = None
         self._ema_reward_item_id: str | int | None = None
-        self._temperature_item_id: str | int | None = None
         self._reward_history_series: str | int | None = None
         self._reward_history_x_axis: str | int | None = None
         self._reward_history_y_axis: str | int | None = None
         self._ema_reward_history_series: str | int | None = None
         self._ema_reward_history_x_axis: str | int | None = None
         self._ema_reward_history_y_axis: str | int | None = None
+        self._dynamic_stats_items: dict[str, tuple[str | int, str | int]] = {}
 
         self._ema_alpha = 0.1
         self._reward_history: deque[tuple[int, float]] = deque(maxlen=50)
         self._ema_reward_history: deque[tuple[int, float]] = deque(maxlen=50)
 
     def build_ui(self):
-        with dpg.table(header_row=False):
+        with dpg.table(header_row=False) as stats_table:
+            self._stats_table = stats_table
             dpg.add_table_column(no_header_label=True)
             dpg.add_table_column(no_header_label=True)
 
@@ -478,10 +519,6 @@ class StatsPanel:
             with dpg.table_row():
                 dpg.add_text("Episode")
                 self._episode_item_id = dpg.add_text("0")
-
-            with dpg.table_row():
-                dpg.add_text("Temperature")
-                self._temperature_item_id = dpg.add_text("0")
 
         dpg.add_spacer()
         dpg.add_separator()
@@ -571,10 +608,8 @@ class StatsPanel:
         dpg_utils.set_value(self._step_item_id, f"{stats.step}")
         dpg_utils.set_value(self._episode_item_id, f"{stats.episode}")
         dpg_utils.set_value(self._reward_item_id, f"{stats.reward:.04f}")
-        dpg_utils.set_value(self._temperature_item_id, f"{stats.temperature:.04f}")
 
         self._reward_history.append((stats.step, stats.reward))
-
         ema: float
         if len(self._reward_history) <= 1:
             ema = stats.reward
@@ -586,14 +621,19 @@ class StatsPanel:
 
         self._ema_reward_history.append((stats.step, ema))
         dpg_utils.set_value(self._ema_reward_item_id, f"{ema:.04f}")
+
         self._update_reward_graph()
+        self._update_dynamic_stats(stats)
 
     def reset(self):
         dpg_utils.set_value(self._step_item_id, "0")
         dpg_utils.set_value(self._episode_item_id, "0")
         dpg_utils.set_value(self._reward_item_id, "0")
         dpg_utils.set_value(self._ema_reward_item_id, "0")
-        dpg_utils.set_value(self._temperature_item_id, "0")
+
+        for _, (row_id, _) in self._dynamic_stats_items.items():
+            dpg.delete_item(row_id)
+        self._dynamic_stats_items = {}
 
         self._reward_history.clear()
         self._ema_reward_history.clear()
@@ -615,6 +655,47 @@ class StatsPanel:
         )
         dpg_utils.fit_axis_data(self._ema_reward_history_x_axis)
         dpg_utils.fit_axis_data(self._ema_reward_history_y_axis)
+
+    def _update_dynamic_stats(self, stats: TrainerStats):
+        for name, value in stats.others.items():
+            if name not in self._dynamic_stats_items:
+                row_id, value_id = self._add_dynamic_stat_row(name, value)
+                self._dynamic_stats_items[name] = (row_id, value_id)
+            else:
+                _, value_id = self._dynamic_stats_items[name]
+                dpg.set_value(value_id, StatsPanel._format_dyn_stat_value(value))
+
+        for name in set(self._dynamic_stats_items) - set(stats.others):
+            row_id, _ = self._dynamic_stats_items[name]
+            dpg.delete_item(row_id)
+
+    def _add_dynamic_stat_row(
+        self, name: str, value: Any
+    ) -> tuple[str | int, str | int]:
+        assert self._stats_table is not None
+
+        with dpg.table_row(parent=self._stats_table) as row_id:
+            dpg.add_text(StatsPanel._format_dyn_stat_key(name))
+            value_id = dpg.add_text(StatsPanel._format_dyn_stat_value(value))
+
+        return row_id, value_id
+
+    @staticmethod
+    def _format_dyn_stat_value(value: Any) -> str:
+        if isinstance(value, float):
+            return f"{value:.4f}"
+        else:
+            return str(value)
+
+    @staticmethod
+    def _format_dyn_stat_key(key: str) -> str:
+        if len(key) == 0:
+            return key
+
+        if key[0].islower():
+            return key[0].upper() + key[1:]
+        else:
+            return key
 
 
 class DiscreteConfigPanel:
@@ -672,10 +753,76 @@ class DiscreteConfigPanel:
                 dpg.add_text(a[1])
 
 
+class ContinuousConfigPanel:
+    def __init__(
+        self,
+        env_config: ContinuousEnvConfig,
+        agent_config: ContinuousAgentConfig,
+        trainer_config: ContinuousTrainerConfig,
+    ):
+        self._env_config = env_config
+        self._agent_config = agent_config
+        self._trainer_config = trainer_config
+
+    def build_ui(self):
+        with dpg.theme() as table_theme:
+            with dpg.theme_component(dpg.mvTable):
+                dpg.add_theme_style(dpg.mvStyleVar_CellPadding, x=5, y=5)
+
+        with dpg.table(header_row=False, policy=dpg.mvTable_SizingStretchProp):
+            dpg.bind_item_theme(dpg.last_item(), table_theme)
+            dpg.add_table_column(no_header_label=True)
+            dpg.add_table_column(no_header_label=True)
+
+            self._add_rows(
+                ("car width", str(self._env_config.car_width)),
+                ("car height", str(self._env_config.car_height)),
+                ("sensor distance", str(self._env_config.sensor_dist)),
+            )
+
+        dpg.add_spacer()
+        dpg.add_separator()
+        dpg.add_spacer()
+
+        with dpg.table(header_row=False, policy=dpg.mvTable_SizingStretchProp):
+            dpg.bind_item_theme(dpg.last_item(), table_theme)
+            dpg.add_table_column(no_header_label=True)
+            dpg.add_table_column(no_header_label=True)
+
+            self._add_rows(
+                ("batch size", str(self._agent_config.batch_size)),
+                ("discount", f"{self._agent_config.discount:.3f}"),
+                ("tau", f"{self._agent_config.tau:.3f}"),
+                ("policy noise", f"{self._agent_config.policy_noise:.3f}"),
+                ("noise clip", f"{self._agent_config.noise_clip:.3f}"),
+                ("policy update frequency", str(self._agent_config.policy_update_freq)),
+            )
+
+        dpg.add_spacer()
+        dpg.add_separator()
+        dpg.add_spacer()
+
+        with dpg.table(header_row=False, policy=dpg.mvTable_SizingStretchProp):
+            dpg.bind_item_theme(dpg.last_item(), table_theme)
+            dpg.add_table_column(no_header_label=True)
+            dpg.add_table_column(no_header_label=True)
+
+            self._add_rows(
+                ("random action steps", str(self._trainer_config.random_action_steps)),
+                ("exploration noise", f"{self._trainer_config.exploration_noise:.2f}"),
+            )
+
+    def _add_rows(self, *args: tuple[str, str]):
+        for a in args:
+            with dpg.table_row():
+                dpg.add_text(a[0])
+                dpg.add_text(a[1])
+
+
 class ConfigPanel:
     def __init__(self):
         self._config: Config | None = None
-        self._inner: DiscreteConfigPanel | None = None
+        self._inner: DiscreteConfigPanel | ContinuousConfigPanel | None = None
         self._panel: str | int | None = None
 
     def update(self, config: Config, parent: str | int):
@@ -684,9 +831,21 @@ class ConfigPanel:
 
         env_config = config.env
         agent_config = config.agent
-        match (env_config, agent_config):
-            case (DiscreteEnvConfig(), DiscreteAgentConfig()):
+        trainer_config = config.trainer
+        match (env_config, agent_config, trainer_config):
+            case (DiscreteEnvConfig(), DiscreteAgentConfig(), None):
                 self._inner = DiscreteConfigPanel(env_config, agent_config)
+                with dpg.group(parent=parent) as panel:
+                    self._panel = panel
+                    self._inner.build_ui()
+            case (
+                ContinuousEnvConfig(),
+                ContinuousAgentConfig(),
+                ContinuousTrainerConfig(),
+            ):
+                self._inner = ContinuousConfigPanel(
+                    env_config, agent_config, trainer_config
+                )
                 with dpg.group(parent=parent) as panel:
                     self._panel = panel
                     self._inner.build_ui()
@@ -695,6 +854,7 @@ class ConfigPanel:
         self._inner = None
         if self._panel is not None:
             dpg.delete_item(self._panel)
+            self._panel = None
 
 
 class LogPanel:

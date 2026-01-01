@@ -1,0 +1,21 @@
+type: continuous
+env:
+  map: ./city_map_1.jpeg
+  car_width: 14
+  car_height: 8
+  car_max_speed: 2
+  car_max_turn_angle: 20
+  sensor_dist: 15
+  render_mode: "rgb_array"
+
+agent:
+  batch_size: 512
+  discount: 0.99
+  tau: 3.e-3
+  policy_noise: 0.2
+  noise_clip: 0.5
+  policy_update_freq: 2
+
+trainer:
+  random_action_steps: 10000
+  exploration_noise: 0.1

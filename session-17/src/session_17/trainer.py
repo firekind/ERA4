@@ -1,5 +1,6 @@
 from abc import ABC
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Any
 
 import numpy as np
 from numpy.typing import NDArray
@@ -10,7 +11,7 @@ class TrainerStats:
     step: int
     episode: int
     reward: float
-    temperature: float
+    others: dict[str, Any] = field(default_factory=dict)
 
 
 class Trainer(ABC):
