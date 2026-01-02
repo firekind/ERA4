@@ -65,7 +65,11 @@ class Config:
                 return Config(env=env_config, agent=agent_config)
 
             case "continuous":
-                env_config = dacite.from_dict(ContinuousEnvConfig, raw_config.env)
+                env_config = dacite.from_dict(
+                    ContinuousEnvConfig,
+                    raw_config.env,
+                    config=dacite.Config(cast=[tuple]),
+                )
                 agent_config = dacite.from_dict(ContinuousAgentConfig, raw_config.agent)
                 trainer_config = dacite.from_dict(
                     ContinuousTrainerConfig, raw_config.trainer or {}
@@ -91,6 +95,17 @@ class Config:
     @property
     def map(self) -> str:
         return self.env.map
+
+    @property
+    def waypoints(self) -> list[tuple[int, int]]:
+        if isinstance(self.env, ContinuousEnvConfig):
+            return self.env.waypoints
+        return []
+
+    @property
+    def start_pos(self) -> tuple[int, int] | None:
+        if isinstance(self.env, ContinuousEnvConfig):
+            return self.env.start_pos
 
 
 # =============================================================================
@@ -196,8 +211,8 @@ class SetupPhase:
     def __init__(self, map: NDArray[np.uint8], config: Config, max_waypoints: int = 6):
         self.map = map
         self.config = config
-        self.start_point: tuple[int, int] | None = None
-        self.waypoints: list[tuple[int, int]] = []
+        self.start_point: tuple[int, int] | None = config.start_pos
+        self.waypoints: list[tuple[int, int]] = config.waypoints
 
         self._max_waypoints = max_waypoints
         self._menu_id: str | int | None = None
@@ -809,7 +824,7 @@ class ContinuousConfigPanel:
 
             self._add_rows(
                 ("random action steps", str(self._trainer_config.random_action_steps)),
-                ("exploration noise", f"{self._trainer_config.exploration_noise:.2f}"),
+                ("exploration noise", f"{self._trainer_config.exploration_noise:.4f}"),
             )
 
     def _add_rows(self, *args: tuple[str, str]):

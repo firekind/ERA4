@@ -7,6 +7,12 @@ env:
   car_max_turn_angle: 20
   sensor_dist: 15
   render_mode: "rgb_array"
+  start_pos: [223, 349]
+  waypoints:
+    - [523, 168]
+    - [728, 231]
+    - [648, 360]
+    - [684, 524]
 
 agent:
   batch_size: 512
@@ -18,4 +24,4 @@ agent:
 
 trainer:
   random_action_steps: 10000
-  exploration_noise: 0.1
+  exploration_noise: 0.005

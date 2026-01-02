@@ -1,7 +1,7 @@
 import logging
 import math
 import random
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Literal, NamedTuple, SupportsFloat
 
 import gymnasium as gym
@@ -47,21 +47,21 @@ class Env(gym.Env):
             dtype=np.float32,
         )
 
-        self.map = map
-        self.start_point = (float(start_point[0]), float(start_point[1]))
-        self.waypoints = waypoints
-        self.car_width = car_width
-        self.car_height = car_height
-        self.car_max_speed = car_max_speed
-        self.car_max_turn_angle = car_max_turn_angle
-        self.sensor_dist = sensor_dist
         self.render_mode = render_mode
+        self._map = map
+        self._start_point = (float(start_point[0]), float(start_point[1]))
+        self._waypoints = waypoints
+        self._car_width = car_width
+        self._car_height = car_height
+        self._car_max_speed = car_max_speed
+        self._car_max_turn_angle = car_max_turn_angle
+        self._sensor_dist = sensor_dist
 
-        self.car_pos = self.start_point
-        self.car_angle = 0.0
-        self.target_waypoint_idx = 0
-        self.waypoints_reached = 0
-        self.prev_dist: float | None = None
+        self._car_pos = self._start_point
+        self._car_angle = 0.0
+        self._target_waypoint_idx = 0
+        self._waypoints_reached = 0
+        self._prev_dist: float | None = None
 
     def step(
         self, action: NDArray[np.float32]
@@ -69,15 +69,15 @@ class Env(gym.Env):
         speed, turn_angle = action
 
         # scaling car speed and turn angle
-        speed *= self.car_max_speed
-        turn_angle *= self.car_max_turn_angle
+        speed *= self._car_max_speed
+        turn_angle *= self._car_max_turn_angle
 
         # updating car position and rotation
-        self.car_angle += turn_angle
-        car_angle_rad = math.radians(self.car_angle)
-        self.car_pos = (
-            self.car_pos[0] + math.cos(car_angle_rad) * speed,
-            self.car_pos[1] + math.sin(car_angle_rad) * speed,
+        self._car_angle += turn_angle
+        car_angle_rad = math.radians(self._car_angle)
+        self._car_pos = (
+            self._car_pos[0] + math.cos(car_angle_rad) * speed,
+            self._car_pos[1] + math.sin(car_angle_rad) * speed,
         )
 
         # getting the next state
@@ -85,29 +85,32 @@ class Env(gym.Env):
         reward = -0.1
         done = False
 
-        if self._is_colliding(self.car_pos):
+        if self._is_colliding(self._car_pos):
             reward = -100.0
             done = True
 
             if not done:
                 # attempt to recover and navigate back to waypoint 0
-                self.target_waypoint_idx = 0
+                self._target_waypoint_idx = 0
 
         elif dist < 20:  # car has reached waypoint
             reward = 100.0
             has_next = self._switch_to_next_waypoint()
             if has_next:
                 done = False
-                self.prev_dist, _ = self._calculate_target_heading()
+                self._prev_dist, _ = self._calculate_target_heading()
             else:
                 done = True
         else:
             # if the sensor at the center detects the road (value closer to 1), incentivize it.
-            reward += next_state[3] * 20
+            reward += self._centered_sensor_reward(next_state)
 
-            if self.prev_dist is not None and dist > self.prev_dist:
-                reward -= 10
-            self.prev_dist = dist
+            # if the car took an action that increased the distance between it and the current
+            # targetted waypoint, reduce the reward.
+            reward += self._distance_reward(dist)
+            self._prev_dist = dist
+
+            reward += self._speed_reward(speed)
 
         return (
             next_state,
@@ -115,7 +118,7 @@ class Env(gym.Env):
             done,
             False,
             dict(
-                num_waypoints_reached=self.waypoints_reached,
+                num_waypoints_reached=self._waypoints_reached,
             ),
         )
 
@@ -128,11 +131,11 @@ class Env(gym.Env):
     ) -> tuple[NDArray[np.float32], dict[str, Any]]:
         super().reset(seed=seed, options=options)
 
-        self.car_pos = self.start_point
-        self.car_angle = float(random.randint(0, 360))
-        self.target_waypoint_idx = 0
-        self.waypoints_reached = 0
-        self.prev_dist = None
+        self._car_pos = self._start_point
+        self._car_angle = float(random.randint(0, 360))
+        self._target_waypoint_idx = 0
+        self._waypoints_reached = 0
+        self._prev_dist = None
 
         state, _ = self._get_state()
         return state, {}
@@ -146,7 +149,7 @@ class Env(gym.Env):
         dist, angle = self._calculate_target_heading()
 
         # normalizing distance and angles
-        norm_dist = min(dist / 800.0, 1.0)
+        norm_dist = min(dist / self._map_diag(), 1.0)
         norm_angle = angle / 180.0
 
         return np.array(sensor_vals + [norm_angle, norm_dist], dtype=np.float32), dist
@@ -157,68 +160,83 @@ class Env(gym.Env):
 
         sensors: list[tuple[float, float]] = []
         for a in angles:
-            rad = math.radians(self.car_angle + a)
-            sx = self.car_pos[0] + math.cos(rad) * self.sensor_dist
-            sy = self.car_pos[1] + math.sin(rad) * self.sensor_dist
+            rad = math.radians(self._car_angle + a)
+            sx = self._car_pos[0] + math.cos(rad) * self._sensor_dist
+            sy = self._car_pos[1] + math.sin(rad) * self._sensor_dist
             sensors.append((sx, sy))
 
         return sensors
 
+    def _centered_sensor_reward(self, state: NDArray[np.float32]) -> float:
+        return state[3] * 5
+
+    def _distance_reward(self, dist: float) -> float:
+        if self._prev_dist is None:
+            return 0
+
+        return ((self._prev_dist - dist) / self._car_max_speed) * 15
+
+    def _speed_reward(self, speed: float) -> float:
+        return speed * 2.5
+
     def _is_colliding(self, pos: tuple[float, float]) -> bool:
-        return self._brightness_at(pos) < 0.4
+        return self._brightness_at(pos) < 0.8
 
     def _brightness_at(self, pos: tuple[float, float]) -> float:
         x, y = pos
         if 0 <= x < self._map_width() and 0 <= y < self._map_height():
-            return float(np.mean(self.map[int(y), int(x)]) / 255.0)
+            return float(np.mean(self._map[int(y), int(x)]) / 255.0)
         else:
             return 0.0
 
     def _calculate_target_heading(self) -> tuple[float, float]:
         # calculating distance to target waypoint
         target_waypoint = self._target_waypoint()
-        dx = target_waypoint[0] - self.car_pos[0]
-        dy = target_waypoint[1] - self.car_pos[1]
+        dx = target_waypoint[0] - self._car_pos[0]
+        dy = target_waypoint[1] - self._car_pos[1]
         dist = math.sqrt(dx * dx + dy * dy)
 
         # calculating angle to target waypoint
         angle_to_target = math.degrees(math.atan2(dy, dx))
-        angle = (angle_to_target - self.car_angle) % 360  # converting it between 0-360
+        angle = (angle_to_target - self._car_angle) % 360  # converting it between 0-360
         if angle > 180:  # converting it between -180 and 180
             angle -= 360
 
         return dist, angle
 
     def _switch_to_next_waypoint(self) -> bool:
-        if self.target_waypoint_idx < len(self.waypoints) - 1:
-            self.target_waypoint_idx += 1
-            self.waypoints_reached += 1
+        if self._target_waypoint_idx < len(self._waypoints) - 1:
+            self._target_waypoint_idx += 1
+            self._waypoints_reached += 1
             return True
         return False
 
     def _target_waypoint(self) -> tuple[int, int]:
-        return self.waypoints[self.target_waypoint_idx]
+        return self._waypoints[self._target_waypoint_idx]
 
     def _map_width(self) -> int:
-        return self.map.shape[1]
+        return self._map.shape[1]
 
     def _map_height(self) -> int:
-        return self.map.shape[0]
+        return self._map.shape[0]
+
+    def _map_diag(self) -> float:
+        return math.sqrt(self._map_width() ** 2 + self._map_height() ** 2)
 
     def _render_frame(self) -> NDArray[np.uint8]:
-        frame = self.map.copy()
+        frame = self._map.copy()
 
         rendering.render_car(
             frame,
-            (int(self.car_pos[0]), int(self.car_pos[1])),
-            self.car_angle,
-            width=self.car_width,
-            height=self.car_height,
+            (int(self._car_pos[0]), int(self._car_pos[1])),
+            self._car_angle,
+            width=self._car_width,
+            height=self._car_height,
         )
 
-        for i, wp in enumerate(self.waypoints):
+        for i, wp in enumerate(self._waypoints):
             rendering.render_waypoint(
-                frame, wp, str(i + 1), i == self.target_waypoint_idx
+                frame, wp, str(i + 1), i == self._target_waypoint_idx
             )
 
         for pos in self._get_sensors_pos():
@@ -355,7 +373,8 @@ class Agent:
         )
 
         # from next state s', get the next action from the actor model
-        next_action = self._actor_target(next_state)
+        with torch.no_grad():
+            next_action = self._actor_target(next_state)
 
         # add gaussian noise to the next action a', and clamp it to a range supported by the environment
         noise = torch.randn_like(next_action).to(_device()) * self._policy_noise
@@ -429,6 +448,8 @@ class ContinuousEnvConfig:
     car_max_turn_angle: float
     sensor_dist: int
     render_mode: Literal["rgb_array"] | None = None
+    start_pos: tuple[int, int] | None = None
+    waypoints: list[tuple[int, int]] = field(default_factory=list)
 
 
 @dataclass
