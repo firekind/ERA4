@@ -793,6 +793,19 @@ class ContinuousConfigPanel:
                 ("car width", str(self._env_config.car_width)),
                 ("car height", str(self._env_config.car_height)),
                 ("sensor distance", str(self._env_config.sensor_dist)),
+                (
+                    "centered sensor reward scale",
+                    f"{self._env_config.centered_sensor_reward_scale:.2f}",
+                ),
+                (
+                    "distance reward scale",
+                    f"{self._env_config.distance_reward_scale:.2f}",
+                ),
+                (
+                    "speed reward scale",
+                    f"{self._env_config.speed_reward_scale:.2f}",
+                ),
+                ("collision threshold", f"{self._env_config.collision_threshold:.2f}"),
             )
 
         dpg.add_spacer()

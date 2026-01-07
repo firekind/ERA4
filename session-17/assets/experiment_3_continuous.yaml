@@ -1,21 +1,22 @@
 type: continuous
 env:
-  map: ./city_map_1.jpeg
-  car_width: 14
-  car_height: 8
+  map: ./city_map_3.jpeg
+  car_width: 12
+  car_height: 6
   car_max_speed: 2
   car_max_turn_angle: 20
   sensor_dist: 10
-  centered_sensor_reward_scale: 5
+  centered_sensor_reward_scale: 8
   distance_reward_scale: 10
-  speed_reward_scale: 5
+  speed_reward_scale: 2.5
+  collision_threshold: 0.8
   render_mode: rgb_array
-  start_pos: [223, 349]
+  start_pos: [314, 20]
   waypoints:
-    - [523, 168]
-    - [728, 231]
-    - [648, 360]
-    - [684, 524]
+    - [301, 351]
+    - [508, 430]
+    - [589, 541]
+    - [703, 776]
 
 agent:
   batch_size: 512
@@ -27,4 +28,4 @@ agent:
 
 trainer:
   random_action_steps: 10000
-  exploration_noise: 0.005
+  exploration_noise: 0.01

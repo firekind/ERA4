@@ -1,21 +1,21 @@
 type: continuous
 env:
-  map: ./city_map_1.jpeg
-  car_width: 14
-  car_height: 8
+  map: ./city_map_2.jpeg
+  car_width: 12
+  car_height: 6
   car_max_speed: 2
   car_max_turn_angle: 20
   sensor_dist: 10
   centered_sensor_reward_scale: 5
   distance_reward_scale: 10
-  speed_reward_scale: 5
+  speed_reward_scale: 2.5
   render_mode: rgb_array
-  start_pos: [223, 349]
+  start_pos: [116, 19]
   waypoints:
-    - [523, 168]
-    - [728, 231]
-    - [648, 360]
-    - [684, 524]
+    - [139, 331]
+    - [378, 483]
+    - [599, 566]
+    - [647, 760]
 
 agent:
   batch_size: 512

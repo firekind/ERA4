@@ -1,6 +1,7 @@
 import logging
 import math
 import random
+from collections import deque
 from dataclasses import dataclass, field
 from typing import Any, Literal, NamedTuple, SupportsFloat
 
@@ -32,6 +33,10 @@ class Env(gym.Env):
         car_max_turn_angle: float,
         sensor_dist: int,
         render_mode: str | None = None,
+        centered_sensor_reward_scale: float = 5,
+        distance_reward_scale: float = 15,
+        speed_reward_scale: float = 2.5,
+        collision_threshold: float = 0.8,
     ):
         assert render_mode is None or render_mode in self.metadata["render_modes"], (
             "unsupported render mode"
@@ -56,6 +61,10 @@ class Env(gym.Env):
         self._car_max_speed = car_max_speed
         self._car_max_turn_angle = car_max_turn_angle
         self._sensor_dist = sensor_dist
+        self._centered_sensor_reward_scale = centered_sensor_reward_scale
+        self._distance_reward_scale = distance_reward_scale
+        self._speed_reward_scale = speed_reward_scale
+        self._collision_threshold = collision_threshold
 
         self._car_pos = self._start_point
         self._car_angle = 0.0
@@ -168,19 +177,21 @@ class Env(gym.Env):
         return sensors
 
     def _centered_sensor_reward(self, state: NDArray[np.float32]) -> float:
-        return state[3] * 5
+        return state[3] * self._centered_sensor_reward_scale
 
     def _distance_reward(self, dist: float) -> float:
         if self._prev_dist is None:
             return 0
 
-        return ((self._prev_dist - dist) / self._car_max_speed) * 15
+        return (
+            (self._prev_dist - dist) / self._car_max_speed
+        ) * self._distance_reward_scale
 
     def _speed_reward(self, speed: float) -> float:
-        return speed * 2.5
+        return speed * self._speed_reward_scale
 
     def _is_colliding(self, pos: tuple[float, float]) -> bool:
-        return self._brightness_at(pos) < 0.8
+        return self._brightness_at(pos) < self._collision_threshold
 
     def _brightness_at(self, pos: tuple[float, float]) -> float:
         x, y = pos
@@ -256,21 +267,54 @@ class Experience(NamedTuple):
 
 
 class ReplayBuffer:
-    def __init__(self, max_size: int = int(1e6)):
+    def __init__(self, max_size: int = int(1e6), priority_pct: float = 0.3):
         self._max_size = max_size
         self._storage: list[Experience] = []
         self._ptr = 0
 
-    def add(self, experience: Experience):
-        if len(self._storage) == self._max_size:
-            self._storage[self._ptr] = experience
-        else:
-            self._storage.append(experience)
-        self._ptr = (self._ptr + 1) % self._max_size
+        self._regular_mem: deque[Experience] = deque(
+            maxlen=int(max_size * (1 - priority_pct))
+        )
+        self._priority_mem: deque[Experience] = deque(
+            maxlen=int(max_size * priority_pct)
+        )
 
     def sample(self, batch_size: int) -> list[Experience]:
-        indices = np.random.randint(0, len(self._storage), size=batch_size)
-        return [self._storage[i] for i in indices]
+        reg_len = len(self._regular_mem)
+        priority_len = len(self._priority_mem)
+        total_len = reg_len + priority_len
+
+        if total_len < batch_size:
+            return []
+
+        # fraction of experiences that are prioritized
+        prioritizable = priority_len / max(total_len, 1)
+
+        # fraction of samples that should be taken from prioritized experiences
+        # min: 30%, max: 70%
+        priority_ratio = 0.3 + (prioritizable * 0.4)
+
+        num_priority_samples = int(batch_size * priority_ratio)
+        num_regular_samples = batch_size - num_priority_samples
+
+        batch: list[Experience] = []
+        if priority_len >= num_priority_samples:
+            batch.extend(random.sample(self._priority_mem, num_priority_samples))
+        else:
+            batch.extend(self._priority_mem)
+            num_regular_samples += num_priority_samples - priority_len
+        if reg_len >= num_regular_samples:
+            batch.extend(random.sample(self._regular_mem, num_regular_samples))
+        else:
+            batch.extend(self._regular_mem)
+
+        return batch
+
+    def remember(self, exps: list[Experience]):
+        self._regular_mem.extend(exps)
+
+    def remember_priority(self, exps: list[Experience]):
+        self._priority_mem.extend(exps)
 
 
 class ActorModel(nn.Module):
@@ -343,6 +387,7 @@ class Agent:
         self._critic_optimizer = optim.Adam(self._critic.parameters())
 
         self._replay_buffer = ReplayBuffer()
+        self._current_episode_buffer: list[Experience] = []
         self._max_action = max_action
         self._batch_size = batch_size
         self._discount = discount
@@ -356,6 +401,9 @@ class Agent:
     def update(self):
         # sample from buffer
         batch = self._replay_buffer.sample(self._batch_size)
+        if len(batch) == 0:
+            return
+
         state = torch.Tensor(np.array([e.state for e in batch])).to(
             _device()
         )  # state s
@@ -436,7 +484,14 @@ class Agent:
             return self._actor(state_tensor).cpu().numpy().flatten()
 
     def remember(self, experience: Experience):
-        self._replay_buffer.add(experience)
+        self._current_episode_buffer.append(experience)
+
+    def finalize_episode(self, prioritize: bool):
+        if prioritize:
+            self._replay_buffer.remember_priority(self._current_episode_buffer)
+        else:
+            self._replay_buffer.remember(self._current_episode_buffer)
+        self._current_episode_buffer = []
 
 
 @dataclass
@@ -447,6 +502,10 @@ class ContinuousEnvConfig:
     car_max_speed: float
     car_max_turn_angle: float
     sensor_dist: int
+    centered_sensor_reward_scale: float = 5
+    distance_reward_scale: float = 15
+    speed_reward_scale: float = 2.5
+    collision_threshold: float = 0.8
     render_mode: Literal["rgb_array"] | None = None
     start_pos: tuple[int, int] | None = None
     waypoints: list[tuple[int, int]] = field(default_factory=list)
@@ -478,7 +537,7 @@ class ContinuousTrainer(Trainer):
         agent_config: ContinuousAgentConfig,
         trainer_config: ContinuousTrainerConfig,
     ):
-        self.env = Env(
+        self._env = Env(
             map=map,
             start_point=start_point,
             waypoints=waypoints,
@@ -488,19 +547,23 @@ class ContinuousTrainer(Trainer):
             car_max_turn_angle=env_config.car_max_turn_angle,
             sensor_dist=env_config.sensor_dist,
             render_mode=env_config.render_mode,
+            centered_sensor_reward_scale=env_config.centered_sensor_reward_scale,
+            distance_reward_scale=env_config.distance_reward_scale,
+            speed_reward_scale=env_config.speed_reward_scale,
+            collision_threshold=env_config.collision_threshold,
         )
 
-        obs_shape = self.env.observation_space.shape
+        obs_shape = self._env.observation_space.shape
         if obs_shape is None:
             raise RuntimeError("environment's observation space has no shape")
 
-        action_shape = self.env.action_space.shape
+        action_shape = self._env.action_space.shape
         if action_shape is None:
             raise RuntimeError("environment's action space has no shape")
 
-        max_action = float(self.env.action_space.high[0])  # type: ignore
+        max_action = float(self._env.action_space.high[0])  # type: ignore
 
-        self.agent = Agent(
+        self._agent = Agent(
             state_dim=obs_shape[0],
             action_dim=action_shape[0],
             max_action=max_action,
@@ -517,17 +580,17 @@ class ContinuousTrainer(Trainer):
         self._num_steps = 0
         self._num_episodes = 0
         self._done = False
-        self._state, _ = self.env.reset()
+        self._state, _ = self._env.reset()
         self._num_waypoints_reached = 0
 
     def step(self) -> tuple[TrainerStats, NDArray[np.uint8] | None]:
         action = self._get_action()
-        next_state, reward, self._done, _, info = self.env.step(action)
+        next_state, reward, self._done, _, info = self._env.step(action)
         reward = float(reward)
-        self.agent.remember(
+        self._agent.remember(
             Experience(self._state, action, reward, next_state, self._done)
         )
-        self.agent.update()
+        self._agent.update()
         self._num_steps += 1
 
         if self._num_waypoints_reached != info["num_waypoints_reached"]:
@@ -540,8 +603,9 @@ class ContinuousTrainer(Trainer):
             else:
                 logging.info("all waypoints reached!")
 
+            self._agent.finalize_episode(prioritize=self._num_waypoints_reached > 0)
             self._num_episodes += 1
-            self._state, _ = self.env.reset()
+            self._state, _ = self._env.reset()
             self._done = False
             self._num_waypoints_reached = 0
         else:
@@ -551,21 +615,21 @@ class ContinuousTrainer(Trainer):
             step=self._num_steps,
             episode=self._num_episodes,
             reward=reward,
-        ), self.env.render()
+        ), self._env.render()
 
     def _get_action(self) -> NDArray[np.float32]:
         if self._num_steps < self._random_action_steps:
-            return self.env.action_space.sample()
+            return self._env.action_space.sample()
         else:
-            action = self.agent.select_action(self._state)
+            action = self._agent.select_action(self._state)
             return (
                 action
                 + np.random.normal(
                     0,
                     self._exploration_noise,
-                    size=self.env.action_space.shape[0],  # type: ignore
+                    size=self._env.action_space.shape[0],  # type: ignore
                 )
-            ).clip(self.env.action_space.low, self.env.action_space.high)  # type: ignore
+            ).clip(self._env.action_space.low, self._env.action_space.high)  # type: ignore
 
 
 def _device() -> str:
